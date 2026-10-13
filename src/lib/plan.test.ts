@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlanDays, generatePlan, groupPlanSteps, isHalfGram, limitOn, validatePlan, type PlanParams } from './plan'
+import {
+  buildPlanDays,
+  customPlanParams,
+  generatePlan,
+  groupPlanSteps,
+  invalidLimitRows,
+  isHalfGram,
+  limitOn,
+  validateCustomLimits,
+  validatePlan,
+  type PlanParams,
+} from './plan'
 
 const isNonIncreasing = (xs: number[]) => xs.every((x, i) => i === 0 || x <= xs[i - 1])
 
@@ -142,5 +153,34 @@ describe('buildPlanDays', () => {
     const days = buildPlanDays(plan, [])
     expect(limitOn(days, '2026-12-24')?.limitG).toBe(0)
     expect(limitOn(days, '2026-03-26')).toBeNull()
+  })
+})
+
+describe('hand-made plans', () => {
+  it('validates the day-by-day limits', () => {
+    expect(validateCustomLimits([5, 4.5, 4.5, 3, 0])).toBeNull()
+    expect(validateCustomLimits([5, 5])).toBeNull() // holding the dose flat is allowed
+    expect(validateCustomLimits([5])).toBe('invalid_duration')
+    expect(validateCustomLimits(Array(367).fill(1))).toBe('invalid_duration')
+    expect(validateCustomLimits([5, 5.5])).toBe('invalid_limits') // may not go up
+    expect(validateCustomLimits([5, 4.3])).toBe('invalid_limits') // half grams only
+    expect(validateCustomLimits([5, null])).toBe('invalid_limits')
+    expect(validateCustomLimits([0, 0])).toBe('invalid_baseline')
+    expect(invalidLimitRows([5, 6, 4, 4.2])).toEqual([false, true, false, true])
+  })
+
+  it('uses the typed limits and shifts them by pauses', () => {
+    const plan = { id: 'm1', ...customPlanParams([5, 4.5, 3, 0]), startDate: '2026-03-27', endedOn: null }
+    expect(plan).toMatchObject({ baselineG: 5, targetG: 0, durationDays: 3, curve: 'manual' })
+    expect(generatePlan(plan)).toEqual([5, 4.5, 3, 0])
+    const days = buildPlanDays(plan, [{ startDate: '2026-03-28', endDate: '2026-03-28' }])
+    expect(days.map((d) => [d.date, d.limitG, d.isPaused])).toEqual([
+      ['2026-03-27', 5, false],
+      ['2026-03-28', 4.5, true],
+      ['2026-03-29', 4.5, false],
+      ['2026-03-30', 3, false],
+      ['2026-03-31', 0, false],
+    ])
+    expect(limitOn(days, '2026-06-01')?.limitG).toBe(0)
   })
 })

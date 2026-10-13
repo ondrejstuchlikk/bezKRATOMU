@@ -167,7 +167,10 @@ export const cs = {
     curves: {
       decelerating: { name: 'Zpomalující ke konci', desc: 'Větší kroky na začátku, menší a delší ke konci. Doporučeno.' },
       linear: { name: 'Rovnoměrný', desc: 'Každý den zhruba stejný pokles.' },
+      manual: { name: 'Vlastní po dnech', desc: 'Limit každého dne si nastavuješ sám/sama.' },
     },
+    editDays: '✏️ Upravit jednotlivé dny',
+    backToAuto: 'Zpět na automatický plán',
     preview: 'Náhled plánu',
     summary: (b: number, t: number, d: number) => `${formatGrams(b)} → ${formatGrams(t)} za ${days(d)}`,
     stepRow: (from: number, to: number) => (from === to ? `Den ${from}` : `Dny ${from}–${to}`),
@@ -211,6 +214,7 @@ export const cs = {
       'Těžké dny k tomu patří. Zkus si říct, co dnes pomohlo a co ne.',
     ],
     metMessage: 'Krásná práce, drž se! 🌿',
+    editPlan: 'Upravit plán ›',
   },
 
   dose: {
@@ -344,6 +348,29 @@ export const cs = {
     invalidNumber: 'Zadej kladné číslo.',
   },
 
+  customPlan: {
+    title: 'Limity po dnech',
+    intro:
+      'Nastav limit pro každý den. Limit může zůstat stejný nebo klesat, po půl gramech. Když některý den snížíš, další dny se mu přizpůsobí.',
+    afterEnd: 'Po posledním dni zůstane limit na poslední hodnotě.',
+    today: 'Dnes',
+    tomorrow: 'Zítra',
+    rowLabel: (date: string) => `Limit na ${date}`,
+    rowTooHigh: 'Víc než předchozí den',
+    count: days,
+    addDay: '+ Den',
+    addWeek: '+ Týden',
+    removeDay: '− Poslední den',
+    errors: {
+      invalid_limits: 'Oprav červeně označené dny: limit je po půl gramech a nesmí oproti předchozímu dni růst.',
+      invalid_baseline: 'Dnešní limit musí být aspoň 0,5 g.',
+      invalid_duration: 'Plán musí mít 2 až 366 dní.',
+      invalid_target: '',
+    },
+    save: 'Uložit plán',
+    saveNote: 'Plán platí od dneška. Dosavadní plán zůstane v historii a grafech.',
+  },
+
   plan: {
     title: 'Můj plán',
     started: 'Začátek',
@@ -357,7 +384,8 @@ export const cs = {
       'Limit se zastaví na dnešní hodnotě a zbytek plánu se posune o délku pauzy. Za pauzu nejsou žádné srážky – dny se hodnotí normálně podle drženého limitu.',
     resume: 'Pokračovat v plánu',
     pausedSince: (date: string) => `Pozastaveno od ${date}`,
-    change: 'Změnit plán',
+    change: 'Nový plán',
+    editDays: '✏️ Upravit limity po dnech',
     finished: (t: number) => `Plán je dokončený 🎉 Limit zůstává na ${formatGrams(t)}.`,
     none: 'Zatím nemáš žádný plán.',
     create: 'Vytvořit plán',

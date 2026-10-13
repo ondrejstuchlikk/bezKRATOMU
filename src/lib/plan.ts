@@ -4,7 +4,8 @@
 
 import { addDays, type ISODate } from './time'
 
-export type Curve = 'linear' | 'decelerating'
+/** 'manual' = the user typed the limit of every day (see customLimits). */
+export type Curve = 'linear' | 'decelerating' | 'manual'
 export type Preset = 'express' | 'fast' | 'medium' | 'slow' | 'very_slow' | 'custom'
 
 export const PRESET_DAYS: Record<Exclude<Preset, 'custom'>, number> = {
@@ -27,9 +28,11 @@ export interface PlanParams {
   targetG: number
   durationDays: number
   curve: Curve
+  /** Limits of days 0..durationDays, only for curve 'manual'. */
+  customLimits?: number[] | null
 }
 
-export type PlanError = 'invalid_baseline' | 'invalid_target' | 'invalid_duration'
+export type PlanError = 'invalid_baseline' | 'invalid_target' | 'invalid_duration' | 'invalid_limits'
 
 /** True for whole and half grams: 0, 0.5, 1, 1.5, … */
 export function isHalfGram(g: number): boolean {
@@ -43,6 +46,39 @@ export function validatePlan(p: PlanParams): PlanError | null {
   return null
 }
 
+/** A hand-made plan has 2 to 366 days (day 0 = today … day 365). */
+export const MIN_CUSTOM_DAYS = 2
+export const MAX_CUSTOM_DAYS = MAX_DURATION_DAYS + 1
+
+/**
+ * Per-row problems of a hand-made plan: each limit must be a half gram between
+ * 0 and 300 and must not be higher than the day before. Mirrors public.create_custom_plan().
+ */
+export function invalidLimitRows(limits: (number | null)[]): boolean[] {
+  return limits.map(
+    (l, i) =>
+      l === null || !isHalfGram(l) || l < 0 || l > MAX_BASELINE_G || (i > 0 && limits[i - 1] !== null && l > limits[i - 1]!),
+  )
+}
+
+export function validateCustomLimits(limits: (number | null)[]): PlanError | null {
+  if (limits.length < MIN_CUSTOM_DAYS || limits.length > MAX_CUSTOM_DAYS) return 'invalid_duration'
+  if (invalidLimitRows(limits).some(Boolean)) return 'invalid_limits'
+  if (limits[0]! < PLAN_STEP_G) return 'invalid_baseline'
+  return null
+}
+
+/** Plan parameters of a hand-made plan (limits must be valid). */
+export function customPlanParams(limits: number[]): PlanParams {
+  return {
+    baselineG: limits[0],
+    targetG: limits[limits.length - 1],
+    durationDays: limits.length - 1,
+    curve: 'manual',
+    customLimits: limits,
+  }
+}
+
 /**
  * Daily limit on day `t` of the plan (day 0 = baseline, day `durationDays` = target).
  *
@@ -52,6 +88,7 @@ export function validatePlan(p: PlanParams): PlanError | null {
  * the target is first reached on the last day of the plan.
  */
 export function planLimit(p: PlanParams, t: number): number {
+  if (p.curve === 'manual') return p.customLimits![Math.min(Math.max(t, 0), p.durationDays)]
   if (t <= 0) return p.baselineG
   if (t >= p.durationDays) return p.targetG
   const baseline2 = Math.round(p.baselineG * 2)
@@ -65,7 +102,7 @@ export function planLimit(p: PlanParams, t: number): number {
 
 /** Limits for days 0..durationDays (inclusive). Throws on invalid input. */
 export function generatePlan(p: PlanParams): number[] {
-  const error = validatePlan(p)
+  const error = p.curve === 'manual' ? validateCustomLimits(p.customLimits ?? []) : validatePlan(p)
   if (error) throw new Error(error)
   return Array.from({ length: p.durationDays + 1 }, (_, t) => planLimit(p, t))
 }

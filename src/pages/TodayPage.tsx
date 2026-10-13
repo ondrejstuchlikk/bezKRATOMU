@@ -189,6 +189,9 @@ function TodayCard({ row, doses, teaspoonGrams }: { row: DayResult; doses: Dose[
       </div>
 
       {limit === 0 && taken === 0 && <p className="text-sm font-medium text-accent">{cs.today.zeroTarget}</p>}
+      <Link to="/plan" className="inline-block min-h-8 text-sm font-semibold text-accent">
+        {cs.today.editPlan}
+      </Link>
       {row.status === 'over' && <p className="rounded-2xl bg-bg p-3 text-sm leading-relaxed">{encouragement(row.date)}</p>}
     </Card>
   )

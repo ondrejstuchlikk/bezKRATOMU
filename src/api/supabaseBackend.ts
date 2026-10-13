@@ -240,6 +240,10 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       )
     },
 
+    async createCustomPlan(limits) {
+      check(await sb.rpc('create_custom_plan', { p_limits: limits }))
+    },
+
     async pausePlan() {
       check(await sb.rpc('pause_plan'))
     },

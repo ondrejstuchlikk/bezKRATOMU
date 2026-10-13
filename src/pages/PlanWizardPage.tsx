@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { backend } from '../api'
 import { PlanPreviewChart } from '../components/charts'
+import { DayLimitsEditor } from '../components/DayLimitsEditor'
 import { BareLayout } from '../components/layout'
 import { NumberStepper } from '../components/NumberStepper'
 import { Button, Card, cx, errorMessage, Loading } from '../components/ui'
@@ -17,6 +18,7 @@ import {
   PLAN_STEP_G,
   PRESET_DAYS,
   PRESETS,
+  validateCustomLimits,
   validatePlan,
   type Curve,
   type Preset,
@@ -49,7 +51,9 @@ function Wizard({
   const [target, setTarget] = useState<number | null>(0)
   const [preset, setPreset] = useState<Preset>('medium')
   const [customDays, setCustomDays] = useState<number | null>(21)
-  const [curve, setCurve] = useState<Curve>('decelerating')
+  const [curve, setCurve] = useState<Exclude<Curve, 'manual'>>('decelerating')
+  // Day-by-day limits once the user chose to edit the generated plan by hand.
+  const [custom, setCustom] = useState<(number | null)[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,6 +61,7 @@ function Wizard({
   const params = { baselineG: baseline ?? 0, targetG: target ?? 0, durationDays: duration, curve }
   const validation = validatePlan(params)
   const limits = validation ? null : generatePlan(params)
+  const customValidation = custom ? validateCustomLimits(custom) : null
 
   const baselineError =
     baseline !== null && (baseline < PLAN_STEP_G || baseline > MAX_BASELINE_G || !isHalfGram(baseline))
@@ -66,11 +71,12 @@ function Wizard({
     target !== null && baseline !== null && (target >= baseline || !isHalfGram(target)) ? cs.wizard.errors.invalid_target : null
 
   async function submit() {
-    if (!limits) return
+    if (custom ? customValidation : !limits) return
     setBusy(true)
     setError(null)
     try {
-      await backend.createPlan({ baselineG: params.baselineG, targetG: params.targetG, durationDays: duration, curve, preset })
+      if (custom) await backend.createCustomPlan(custom as number[])
+      else await backend.createPlan({ baselineG: params.baselineG, targetG: params.targetG, durationDays: duration, curve, preset })
       await refresh()
       navigate('/', { replace: true })
     } catch (err) {
@@ -125,7 +131,31 @@ function Wizard({
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && custom && (
+        <div className="space-y-5">
+          <Card className="space-y-3">
+            <h2 className="text-lg font-semibold">{cs.customPlan.title}</h2>
+            <p className="text-sm leading-relaxed text-muted">{cs.customPlan.intro}</p>
+            <DayLimitsEditor startDate={today} limits={custom} onChange={setCustom} teaspoonGrams={teaspoonGrams} />
+          </Card>
+          {!customValidation && (
+            <Card>
+              <PlanPreviewChart limits={custom as number[]} />
+            </Card>
+          )}
+          {customValidation && <p className="text-sm text-over">{cs.customPlan.errors[customValidation]}</p>}
+          <Button variant="secondary" className="w-full" onClick={() => setCustom(null)}>
+            {cs.wizard.backToAuto}
+          </Button>
+          {existing && <p className="text-sm text-muted">{cs.wizard.replaceNote}</p>}
+          {error && <p className="text-sm text-over" role="alert">{error}</p>}
+          <Button className="w-full" disabled={!!customValidation || busy} onClick={submit}>
+            {cs.wizard.start}
+          </Button>
+        </div>
+      )}
+
+      {step === 3 && !custom && (
         <div className="space-y-5">
           <Card className="space-y-3">
             <h2 className="text-lg font-semibold">{cs.wizard.paceQ}</h2>
@@ -208,6 +238,9 @@ function Wizard({
               </ul>
               <p className="text-sm text-muted">{cs.wizard.afterEnd}</p>
               {!teaspoonGrams && <p className="text-sm text-muted">{cs.dose.tspSetupHint}</p>}
+              <Button variant="secondary" className="w-full" onClick={() => setCustom(limits.slice())}>
+                {cs.wizard.editDays}
+              </Button>
             </Card>
           )}
 

@@ -35,7 +35,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0007`) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0008`) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -58,6 +58,9 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
   `src/lib/plan.ts` and `private.plan_limit()` use the same formula
   `L(t) = target + ceil½((baseline − target) · ((D − t)/D)^k)`, k = 1 (linear) or 2 (decelerating),
   computed with integers in half-gram units. The database materializes the authoritative limits in `plan_days`.
+- **Hand-made plans**: users can also set the limit of each day themselves (*Můj plán → Upravit limity
+  po dnech*, or *Upravit jednotlivé dny* in the wizard). Limits are half grams and never go up;
+  `create_custom_plan()` stores them in `plans.custom_limits` and pauses shift them like any plan.
 - **Teaspoons**: users who set their spoon size in Nastavení also see each limit in teaspoons
   (rounded down to 0.1, so following it never exceeds the limit).
 - **Scoring**: computed only on the server. Today and yesterday are provisional (computed on the fly);

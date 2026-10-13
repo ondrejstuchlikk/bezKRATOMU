@@ -178,6 +178,8 @@ export interface Backend {
 
   getActivePlan(): Promise<ActivePlan | null>
   createPlan(plan: NewPlan): Promise<void>
+  /** Hand-made plan starting today: limits[0] is today's limit, limits[1] tomorrow's, … */
+  createCustomPlan(limits: number[]): Promise<void>
   pausePlan(): Promise<void>
   resumePlan(): Promise<void>
 

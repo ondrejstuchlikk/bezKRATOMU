@@ -113,9 +113,14 @@ export default function PlanPage() {
 
       {error && <p className="text-sm text-over">{error}</p>}
 
-      <ButtonLink to="/plan/novy" variant="secondary" className="w-full">
-        {cs.plan.change}
-      </ButtonLink>
+      <div className="space-y-2">
+        <ButtonLink to="/plan/upravit" className="w-full">
+          {cs.plan.editDays}
+        </ButtonLink>
+        <ButtonLink to="/plan/novy" variant="secondary" className="w-full">
+          {cs.plan.change}
+        </ButtonLink>
+      </div>
     </div>
   )
 }

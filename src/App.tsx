@@ -19,6 +19,7 @@ const ChartsPage = lazy(() => import('./pages/ChartsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const PlanPage = lazy(() => import('./pages/PlanPage'))
 const PlanWizardPage = lazy(() => import('./pages/PlanWizardPage'))
+const PlanEditPage = lazy(() => import('./pages/PlanEditPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,7 @@ export function App() {
                     <Route path="/skupina" element={<GroupPage />} />
                     <Route path="/nastaveni" element={<SettingsPage />} />
                     <Route path="/plan" element={<PlanPage />} />
+                    <Route path="/plan/upravit" element={<PlanEditPage />} />
                     <Route path="/u/:userId" element={<ProfilePage />} />
                     <Route path="/u/:userId/:date" element={<DayPage />} />
                   </Route>

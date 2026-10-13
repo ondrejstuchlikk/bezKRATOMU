@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatNumber, parseDecimal } from '../lib/units'
 import { MinusIcon, PlusIcon } from './icons'
+import { cx } from './ui'
 
 /** Big one-hand number input with −/+ buttons. Accepts a decimal comma. */
 export function NumberStepper({
@@ -12,6 +13,8 @@ export function NumberStepper({
   integer = false,
   suffix,
   label,
+  compact = false,
+  invalid = false,
 }: {
   value: number | null
   onChange: (value: number | null) => void
@@ -21,6 +24,9 @@ export function NumberStepper({
   integer?: boolean
   suffix?: string
   label: string
+  /** Smaller variant for long lists. */
+  compact?: boolean
+  invalid?: boolean
 }) {
   const [text, setText] = useState(value === null ? '' : formatNumber(value))
   const [shownValue, setShownValue] = useState(value)
@@ -39,12 +45,15 @@ export function NumberStepper({
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className={cx('flex items-center', compact ? 'gap-2' : 'gap-3')}>
       <button
         type="button"
         aria-label="−"
         onClick={() => bump(-1)}
-        className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-line bg-bg text-ink active:scale-95"
+        className={cx(
+          'flex shrink-0 items-center justify-center border border-line bg-bg text-ink active:scale-95',
+          compact ? 'size-10 rounded-xl' : 'size-14 rounded-2xl',
+        )}
       >
         <MinusIcon />
       </button>
@@ -52,7 +61,12 @@ export function NumberStepper({
         <input
           aria-label={label}
           inputMode={integer ? 'numeric' : 'decimal'}
-          className="h-16 w-full rounded-2xl border border-line bg-bg text-center font-display text-4xl font-semibold tabular-nums outline-none focus:border-accent"
+          aria-invalid={invalid || undefined}
+          className={cx(
+            'w-full border bg-bg text-center font-display font-semibold tabular-nums outline-none focus:border-accent',
+            compact ? 'h-11 rounded-xl text-xl' : 'h-16 rounded-2xl text-4xl',
+            invalid ? 'border-over' : 'border-line',
+          )}
           value={text}
           onChange={(e) => {
             const t = e.target.value.replace(/[^\d.,]/g, '')
@@ -63,7 +77,12 @@ export function NumberStepper({
           }}
         />
         {suffix && (
-          <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-lg font-semibold text-muted">
+          <span
+            className={cx(
+              'pointer-events-none absolute top-1/2 -translate-y-1/2 font-semibold text-muted',
+              compact ? 'right-3 text-sm' : 'right-4 text-lg',
+            )}
+          >
             {suffix}
           </span>
         )}
@@ -72,7 +91,10 @@ export function NumberStepper({
         type="button"
         aria-label="+"
         onClick={() => bump(1)}
-        className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink active:scale-95"
+        className={cx(
+          'flex shrink-0 items-center justify-center bg-accent text-accent-ink active:scale-95',
+          compact ? 'size-10 rounded-xl' : 'size-14 rounded-2xl',
+        )}
       >
         <PlusIcon />
       </button>

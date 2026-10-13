@@ -94,6 +94,19 @@ select date - (:'today')::date as o, status, points, limit_g, total_g, plan_pct,
 \echo '--- leaderboard / summary'
 select nickname, total_points, met_pct, current_streak, best_streak, reduction_limit_pct, reduction_avg_pct, today_status, current_limit_g from get_leaderboard();
 select get_group_summary();
+\echo '--- hand-made plan (expected 4.0,3.5,3.5,1.0,0.0 / flat 2.0,2.0)'
+select public.expect_error($$select create_custom_plan(array[3, 3.5])$$, 'custom limits go up');
+select public.expect_error($$select create_custom_plan(array[3, 2.2])$$, 'custom limit not a half gram');
+select public.expect_error($$select create_custom_plan(array[3])$$, 'custom plan with one day');
+select public.expect_error($$select create_custom_plan(array[3, null])$$, 'custom plan with empty day');
+select public.expect_error($$select create_custom_plan(array[0, 0])$$, 'custom plan starting at 0');
+select public.expect_error($$select create_custom_plan(array_fill(1::numeric, array[367]))$$, 'custom plan too long');
+select create_custom_plan(array[2, 2]) is not null as flat_plan_created;
+select string_agg(limit_g::text, ',' order by date) as a_flat_limits from plan_days;
+select create_custom_plan(array[4, 3.5, 3.5, 1, 0]) is not null as custom_plan_created;
+select string_agg(limit_g::text, ',' order by date) as a_custom_limits from plan_days;
+select curve, preset, baseline_g, target_g, duration_days, custom_limits from plans where status = 'active';
+select count(*) as a_plans_total from plans;
 select public.expect_error($$select pause_plan(); select pause_plan()$$, 'double pause');
 select pause_plan();
 select is_paused, limit_g from plan_days order by date;

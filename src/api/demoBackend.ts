@@ -5,7 +5,7 @@
 
 import { computeDays, computeStats, deriveDayEvents, type DayActivity, type DayRow } from '../lib/days'
 import { slugifyNickname } from '../lib/nickname'
-import { buildPlanDays, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
+import { buildPlanDays, customPlanParams, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
 import { addDays, pragueDate, pragueLocalToInstant, pragueToday, type ISODate } from '../lib/time'
 import { gramsToCg, round2 } from '../lib/units'
 import {
@@ -386,6 +386,34 @@ export function createDemoBackend(): Backend {
     return state.plans.find((p) => p.userId === userId && p.status === 'active') ?? null
   }
 
+  /** Starts a new plan today, keeping the old one in history (mirrors private.retire_active_plan). */
+  function addPlan(input: Omit<DemoPlan, 'id' | 'userId' | 'startDate' | 'endedOn' | 'status' | 'createdAt'>) {
+    const user = me()
+    const today = pragueToday()
+    const old = activePlan(user.id)
+    if (old) {
+      if (old.startDate >= today) {
+        state.plans = state.plans.filter((p) => p.id !== old.id)
+        state.pauses = state.pauses.filter((p) => p.planId !== old.id)
+      } else {
+        state.pauses = state.pauses.filter((p) => !(p.planId === old.id && p.startDate >= today))
+        for (const p of state.pauses) if (p.planId === old.id && p.endDate === null) p.endDate = addDays(today, -1)
+        old.status = 'replaced'
+        old.endedOn = today
+      }
+    }
+    state.plans.push({
+      id: uid(),
+      userId: user.id,
+      ...input,
+      startDate: today,
+      endedOn: null,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    })
+    save()
+  }
+
   function toDose(d: DemoDose): Dose {
     const { userId: _userId, ...dose } = d
     return dose
@@ -515,30 +543,12 @@ export function createDemoBackend(): Backend {
 
     async createPlan(input) {
       await delay()
-      const user = me()
-      const today = pragueToday()
-      const old = activePlan(user.id)
-      if (old) {
-        if (old.startDate >= today) {
-          state.plans = state.plans.filter((p) => p.id !== old.id)
-          state.pauses = state.pauses.filter((p) => p.planId !== old.id)
-        } else {
-          state.pauses = state.pauses.filter((p) => !(p.planId === old.id && p.startDate >= today))
-          for (const p of state.pauses) if (p.planId === old.id && p.endDate === null) p.endDate = addDays(today, -1)
-          old.status = 'replaced'
-          old.endedOn = today
-        }
-      }
-      state.plans.push({
-        id: uid(),
-        userId: user.id,
-        ...input,
-        startDate: today,
-        endedOn: null,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      })
-      save()
+      addPlan({ ...input, customLimits: null })
+    },
+
+    async createCustomPlan(limits) {
+      await delay()
+      addPlan({ ...customPlanParams(limits), preset: 'custom' })
     },
 
     async pausePlan() {
