@@ -37,6 +37,7 @@ select private.finalize_all();  -- idempotent
 \echo '--- after finalize: final rows / events'
 select count(*) as final_rows from daily_results where user_id = :'b';
 select type, event_date - private.prague_today() as day_offset, payload from feed_events order by id;
+select count(*) as feed_events_with_grams from feed_events where payload::text ~ '_g"';
 \o fixture.json
 \pset format unaligned
 \pset tuples_only on

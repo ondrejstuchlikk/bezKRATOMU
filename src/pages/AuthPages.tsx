@@ -1,9 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { backend } from '../api'
 import { DEMO_PIN } from '../api/demoBackend'
 import { BareLayout } from '../components/layout'
-import { Button, Card, errorMessage, Field, inputClass } from '../components/ui'
+import { Button, Card, cx, errorMessage, Field, inputClass } from '../components/ui'
 import { cs } from '../i18n/cs'
 import { isValidPin, validateNickname } from '../lib/nickname'
 
@@ -92,10 +93,41 @@ export function LoginPage() {
   )
 }
 
+/** Required yes/no choice: may other users see this user's grams? */
+function ShareChoice({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-2 font-semibold">{cs.auth.shareQ}</legend>
+      {([true, false] as const).map((share) => {
+        const option = share ? cs.auth.shareYes : cs.auth.shareNo
+        return (
+          <button
+            key={String(share)}
+            type="button"
+            role="radio"
+            aria-checked={value === share}
+            onClick={() => onChange(share)}
+            className={cx(
+              'block w-full rounded-2xl border p-3 text-left transition',
+              value === share ? 'border-accent bg-accent/10' : 'border-line bg-bg',
+            )}
+          >
+            <div className="font-semibold">{option.title}</div>
+            <div className="text-sm text-muted">{option.desc}</div>
+          </button>
+        )
+      })}
+      <p className="text-sm text-muted">{cs.auth.shareLater}</p>
+    </fieldset>
+  )
+}
+
 export function RegisterPage() {
+  const queryClient = useQueryClient()
   const [nickname, setNickname] = useState('')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
+  const [shareGrams, setShareGrams] = useState<boolean | null>(null)
   const [checked, setChecked] = useState<{ nickname: string; available: boolean } | null>(null)
   const available = checked?.nickname === nickname ? checked.available : null
   const [busy, setBusy] = useState(false)
@@ -122,12 +154,20 @@ export function RegisterPage() {
     if (nickErr) return setError(cs.auth.nicknameErrors[nickErr])
     if (!isValidPin(pin)) return setError(cs.auth.pinInvalid)
     if (pin !== pin2) return setError(cs.auth.pinMismatch)
+    if (shareGrams === null) return setError(cs.auth.shareRequired)
     setBusy(true)
     try {
       await backend.register(nickname.trim(), pin)
     } catch (err) {
       setError(errorMessage(err))
       setBusy(false)
+      return
+    }
+    // New profiles start with sharing off, so only "yes" needs saving. If this
+    // fails the account stays private, which is the safe side; it can be changed in Nastavení.
+    if (shareGrams) {
+      await backend.updateSettings({ shareGrams: true }).catch(() => {})
+      await queryClient.invalidateQueries()
     }
   }
 
@@ -159,11 +199,14 @@ export function RegisterPage() {
           <PinInput label={cs.auth.pin} value={pin} onChange={setPin} autoComplete="new-password" />
           <PinInput label={cs.auth.pinAgain} value={pin2} onChange={setPin2} autoComplete="new-password" />
           <p className="text-sm text-muted">{cs.auth.pinWarning}</p>
+          <ShareChoice value={shareGrams} onChange={setShareGrams} />
           {error && <p className="text-sm text-over" role="alert">{error}</p>}
           <Button
             type="submit"
             className="w-full"
-            disabled={busy || !!nicknameError || available === false || pin.length !== 6 || pin2.length !== 6}
+            disabled={
+              busy || !!nicknameError || available === false || pin.length !== 6 || pin2.length !== 6 || shareGrams === null
+            }
           >
             {cs.auth.register}
           </Button>

@@ -114,6 +114,17 @@ export const cs = {
     pin: 'PIN (6 číslic)',
     pinAgain: 'PIN znovu',
     pinWarning: 'PIN si dobře zapamatuj – nedá se obnovit.',
+    shareQ: 'Můžou ostatní vidět, kolik gramů si denně bereš?',
+    shareYes: {
+      title: 'Ano, ať vidí moje gramy',
+      desc: 'Ostatní uvidí tvůj denní limit i přesné množství, které si vezmeš.',
+    },
+    shareNo: {
+      title: 'Ne, jen výsledky',
+      desc: 'Ostatní uvidí jen body, jestli jsi den splnil(a), série a procenta z limitu – nikdy gramy.',
+    },
+    shareLater: 'Můžeš to kdykoli změnit v Nastavení.',
+    shareRequired: 'Vyber, jestli chceš sdílet gramy.',
     login: 'Přihlásit se',
     register: 'Vytvořit účet',
     toRegister: 'Nemáš účet? Zaregistruj se',

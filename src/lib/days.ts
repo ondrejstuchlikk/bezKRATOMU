@@ -137,7 +137,7 @@ export function deriveDayEvents(
     }
     if (r.status === 'met' && !targetDone.has(r.planId) && r.limitG === targetByPlan.get(r.planId)) {
       targetDone.add(r.planId)
-      events.push({ type: 'target_reached', eventDate: r.date, payload: { target_g: r.limitG } })
+      events.push({ type: 'target_reached', eventDate: r.date, payload: {} })
     }
     if (!zero && r.zeroDay) {
       zero = true
