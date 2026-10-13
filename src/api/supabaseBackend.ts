@@ -172,13 +172,19 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const id = await uid()
       const profile = check(await sb.from('profiles').select('nickname, share_grams').eq('id', id).single()) as Row
       const settings = check(
-        await sb.from('user_settings').select('teaspoon_grams, price_per_gram').eq('user_id', id).single(),
+        await sb
+          .from('user_settings')
+          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social')
+          .eq('user_id', id)
+          .single(),
       ) as Row
       return {
         nickname: profile.nickname as string,
         shareGrams: Boolean(profile.share_grams),
         teaspoonGrams: num(settings.teaspoon_grams),
         pricePerGram: num(settings.price_per_gram),
+        reminderHour: num(settings.reminder_hour),
+        notifySocial: Boolean(settings.notify_social),
       }
     },
 
@@ -190,10 +196,20 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const settings: Row = {}
       if (patch.teaspoonGrams !== undefined) settings.teaspoon_grams = patch.teaspoonGrams
       if (patch.pricePerGram !== undefined) settings.price_per_gram = patch.pricePerGram
+      if (patch.reminderHour !== undefined) settings.reminder_hour = patch.reminderHour
+      if (patch.notifySocial !== undefined) settings.notify_social = patch.notifySocial
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))
       }
+    },
+
+    async savePushSubscription(keys) {
+      check(await sb.rpc('save_push_subscription', { p_endpoint: keys.endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth }))
+    },
+
+    async deletePushSubscription(endpoint) {
+      check(await sb.rpc('delete_push_subscription', { p_endpoint: endpoint }))
     },
 
     async getActivePlan() {

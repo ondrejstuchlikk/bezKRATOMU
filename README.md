@@ -35,7 +35,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0008`) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -47,6 +47,26 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
    These are public by design. Never put the `service_role` / secret key anywhere in this repo.
 5. **GitHub**: repo → *Settings → Secrets and variables → Actions → Variables* → add
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Then *Actions → Deploy to GitHub Pages → Run workflow*.
+
+## Push notifications (one time)
+
+Evening reminder (only if today isn't logged) and reactions/comments, via web push. Android: Chrome.
+iPhone: iOS 16.4+, only when the app is added to the home screen.
+
+1. Generate a key pair: `npx web-push generate-vapid-keys --json`. Put the public key in
+   `src/config/push.ts`; keep the private key secret.
+2. Run `supabase/migrations/0009_push.sql` in the SQL editor.
+3. Deploy the Edge Function and its secrets (after `npx supabase login`):
+   ```bash
+   npx supabase secrets set --project-ref <ref> VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… \
+     VAPID_SUBJECT=https://ondrejstuchlikk.github.io/bezKRATOMU/ CRON_SECRET=<random>
+   npx supabase functions deploy push --project-ref <ref> --no-verify-jwt --use-api
+   ```
+4. In the SQL editor, store the function URL and the same `CRON_SECRET` in Vault (see the header of
+   `0010_push_cron.sql`), then run `0010_push_cron.sql`.
+
+The database decides what is due (`private.claim_push_notifications()`); the function only encrypts and
+sends. Lock-screen texts never contain grams.
 
 ## How it works
 

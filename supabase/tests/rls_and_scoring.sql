@@ -94,6 +94,28 @@ select date - (:'today')::date as o, status, points, limit_g, total_g, plan_pct,
 \echo '--- leaderboard / summary'
 select nickname, total_points, met_pct, current_streak, best_streak, reduction_limit_pct, reduction_avg_pct, today_status, current_limit_g from get_leaderboard();
 select get_group_summary();
+\echo '--- push notifications'
+select public.expect_error($$select save_push_subscription('https://evil.example.com/x', 'k', 'a')$$, 'push endpoint must be a push service');
+select save_push_subscription('https://fcm.googleapis.com/fcm/send/dev1', 'p256dh-a', 'auth-a');
+select public.expect_error($$update user_settings set last_reminder_on = current_date$$, 'write last_reminder_on');
+update user_settings set reminder_hour = extract(hour from now() at time zone 'Europe/Prague'), notify_social = true;
+select set_config('request.jwt.claim.sub', :'b', false) \g /dev/null
+select save_push_subscription('https://web.push.apple.com/dev2', 'p256dh-b', 'auth-b');
+update user_settings set reminder_hour = extract(hour from now() at time zone 'Europe/Prague'), notify_social = true;
+select count(*) as b_sees_push_rows from push_subscriptions;
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
+select delete_push_subscription('https://web.push.apple.com/dev2');
+select count(*) as a_sees_push_rows from push_subscriptions;
+select public.expect_error($$select private.claim_push_notifications()$$, 'claim notifications as user');
+reset role;
+select count(*) as push_rows_total from push_subscriptions;
+\echo '--- due (expected for B only: reminder + reaction + comment; A already logged today)'
+select endpoint, body, url, tag from private.claim_push_notifications() order by tag, body;
+select count(*) as due_again from private.claim_push_notifications();
+select private.remove_push_subscriptions(array['https://web.push.apple.com/dev2']);
+select count(*) as push_rows_after_remove from push_subscriptions;
+set role authenticated;
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
 \echo '--- hand-made plan (expected 4.0,3.5,3.5,1.0,0.0 / flat 2.0,2.0)'
 select public.expect_error($$select create_custom_plan(array[3, 3.5])$$, 'custom limits go up');
 select public.expect_error($$select create_custom_plan(array[3, 2.2])$$, 'custom limit not a half gram');

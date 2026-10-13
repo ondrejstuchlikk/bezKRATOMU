@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backend, type MySettings } from '../api'
 import { resetDemoData } from '../api/demoBackend'
+import { NotificationSettings } from '../components/NotificationSettings'
 import { Button, Card, ErrorState, errorMessage, inputClass, Loading, PageHeader, Segmented, Toggle } from '../components/ui'
 import { keys, useSettings } from '../hooks/queries'
 import { cs } from '../i18n/cs'
+import { disablePushOnThisDevice } from '../lib/push'
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme'
 import { formatNumber, parseDecimal } from '../lib/units'
 
@@ -46,6 +48,8 @@ export function SettingsPage() {
 
       <ShareSetting value={settings.data.shareGrams} />
 
+      <NotificationSettings settings={settings.data} />
+
       <Card className="space-y-3">
         <h2 className="font-semibold">{cs.settings.theme}</h2>
         <Segmented
@@ -67,7 +71,15 @@ export function SettingsPage() {
         </Link>
       </Card>
 
-      <Button variant="secondary" className="w-full" onClick={() => backend.logout()}>
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={async () => {
+          // A shared phone shouldn't keep getting the previous user's notifications.
+          await disablePushOnThisDevice().catch(() => {})
+          await backend.logout()
+        }}
+      >
         {cs.settings.logout}
       </Button>
 

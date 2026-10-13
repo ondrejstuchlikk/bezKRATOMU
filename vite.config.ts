@@ -36,6 +36,8 @@ export default defineConfig({
         // Offline app shell only; API calls to Supabase always go to the network.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: 'index.html',
+        // Web push handlers (public/push-sw.js).
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

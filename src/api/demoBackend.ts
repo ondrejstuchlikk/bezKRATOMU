@@ -32,6 +32,9 @@ interface DemoUser {
   shareGrams: boolean
   teaspoonGrams: number | null
   pricePerGram: number | null
+  /** Optional because demo data saved by older versions doesn't have them. */
+  reminderHour?: number | null
+  notifySocial?: boolean
   /** Simulated friend: doses are generated instead of stored. */
   bot: { seed: number; missRate: number; overRate: number; usesTeaspoon: boolean } | null
 }
@@ -507,7 +510,14 @@ export function createDemoBackend(): Backend {
     async getMySettings() {
       await delay(60)
       const u = me()
-      return { nickname: u.nickname, shareGrams: u.shareGrams, teaspoonGrams: u.teaspoonGrams, pricePerGram: u.pricePerGram }
+      return {
+        nickname: u.nickname,
+        shareGrams: u.shareGrams,
+        teaspoonGrams: u.teaspoonGrams,
+        pricePerGram: u.pricePerGram,
+        reminderHour: u.reminderHour ?? null,
+        notifySocial: u.notifySocial ?? false,
+      }
     },
 
     async updateSettings(patch) {
@@ -516,8 +526,17 @@ export function createDemoBackend(): Backend {
       if (patch.shareGrams !== undefined) u.shareGrams = patch.shareGrams
       if (patch.teaspoonGrams !== undefined) u.teaspoonGrams = patch.teaspoonGrams
       if (patch.pricePerGram !== undefined) u.pricePerGram = patch.pricePerGram
+      if (patch.reminderHour !== undefined) u.reminderHour = patch.reminderHour
+      if (patch.notifySocial !== undefined) u.notifySocial = patch.notifySocial
       save()
     },
+
+    // Demo mode has no server that could send notifications.
+    async savePushSubscription() {
+      throw new AppError('unknown', 'push_not_in_demo')
+    },
+
+    async deletePushSubscription() {},
 
     async getActivePlan(): Promise<ActivePlan | null> {
       await delay(60)

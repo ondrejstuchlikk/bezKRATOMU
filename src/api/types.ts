@@ -2,6 +2,7 @@ import type { FeedEventType } from '../lib/days'
 import type { Curve, PlanDay, Preset } from '../lib/plan'
 import type { DayStatus } from '../lib/scoring'
 import type { ISODate } from '../lib/time'
+import type { PushKeys } from '../lib/push'
 import type { InputUnit } from '../lib/units'
 
 export type { DayStatus, FeedEventType }
@@ -16,6 +17,10 @@ export interface MySettings {
   shareGrams: boolean
   teaspoonGrams: number | null
   pricePerGram: number | null
+  /** Prague hour of the evening reminder, null = off (applies to all devices). */
+  reminderHour: number | null
+  /** Notify about reactions and comments on my days. */
+  notifySocial: boolean
 }
 
 export interface ActivePlan {
@@ -175,6 +180,10 @@ export interface Backend {
 
   getMySettings(): Promise<MySettings>
   updateSettings(patch: Partial<Omit<MySettings, 'nickname'>>): Promise<void>
+
+  /** Web push for this device (not available in demo mode). */
+  savePushSubscription(keys: PushKeys): Promise<void>
+  deletePushSubscription(endpoint: string): Promise<void>
 
   getActivePlan(): Promise<ActivePlan | null>
   createPlan(plan: NewPlan): Promise<void>

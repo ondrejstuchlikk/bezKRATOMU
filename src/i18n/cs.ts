@@ -348,6 +348,27 @@ export const cs = {
     invalidNumber: 'Zadej kladné číslo.',
   },
 
+  notifications: {
+    title: 'Upozornění',
+    device: 'Upozornění na tomto zařízení',
+    deviceHint: 'Zapni na každém telefonu, kde je chceš dostávat.',
+    reminder: 'Večerní připomenutí',
+    reminderHint: 'Přijde jen tehdy, když ještě nemáš dnešek zapsaný.',
+    reminderOff: 'Vypnuto',
+    hour: (h: number) => `${h}:00`,
+    social: 'Reakce a komentáře',
+    socialHint: 'Když ti někdo pošle povzbuzení nebo okomentuje tvůj den.',
+    enabledTest: 'Upozornění jsou zapnutá ✓',
+    privacy: 'Na zamčené obrazovce se nikdy neukážou gramy ani o čem aplikace je.',
+    declined: 'Upozornění nejsou povolená. Zkus to znovu a v dotazu telefonu zvol „Povolit“.',
+    denied:
+      'Upozornění máš pro tuto aplikaci zakázaná. Povol je v nastavení telefonu (Nastavení → Oznámení → bezKRATOMU, v Androidu Nastavení → Aplikace → Chrome → Oznámení) a stránku znovu otevři.',
+    iosInstall:
+      'Na iPhonu fungují upozornění jen v aplikaci přidané na plochu: v Safari klepni na Sdílet (čtvereček se šipkou) → „Přidat na plochu“, pak bezKRATOMU otevři z plochy a vrať se sem.',
+    unsupported: 'Tento prohlížeč upozornění nepodporuje. Zkus Chrome (Android) nebo Safari s aplikací na ploše (iPhone).',
+    demo: 'V ukázkovém režimu upozornění nefungují.',
+  },
+
   customPlan: {
     title: 'Limity po dnech',
     intro:
