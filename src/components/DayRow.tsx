@@ -12,7 +12,7 @@ export function DayRowLink({ userId, day }: { userId: string; day: DayResult }) 
     : day.zeroDay
       ? '0 g 🌱'
       : day.totalG !== null && day.limitG !== null
-        ? `${formatGrams(day.totalG)} / ${day.limitG} g`
+        ? `${formatGrams(day.totalG)} / ${formatGrams(day.limitG)}`
         : day.actualPct !== null
           ? `${formatPct(day.planPct > 0 ? (100 * day.actualPct) / day.planPct : day.actualPct)} ${cs.day.ofLimit}`
           : ''

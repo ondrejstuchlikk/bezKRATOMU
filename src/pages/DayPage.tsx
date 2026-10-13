@@ -68,7 +68,7 @@ export function DayPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="text-sm text-muted">{cs.day.limit}</div>
-                <div className="text-xl font-semibold">{day.limitG !== null ? `${day.limitG} g` : formatPct(day.planPct)}</div>
+                <div className="text-xl font-semibold">{day.limitG !== null ? formatGrams(day.limitG) : formatPct(day.planPct)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted">{cs.day.intake}</div>

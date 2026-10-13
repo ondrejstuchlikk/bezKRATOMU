@@ -1,7 +1,9 @@
 // Scoring rules. The authoritative implementation is server-side
-// (private.compute_days in supabase/migrations/0004_scoring.sql); this mirror
+// (private.compute_days, last redefined in supabase/migrations/0006_half_grams.sql); this mirror
 // powers the demo mode and documents the rules with unit tests.
 // All amounts are handled as integer centigrams so both sides round identically.
+
+import { gramsToCg } from './units'
 
 export type DayStatus = 'met' | 'over' | 'missed' | 'pending'
 
@@ -37,13 +39,14 @@ export function missedPenalty(missedRun: number): number {
   return -Math.min(40, 20 + 5 * (missedRun - 1))
 }
 
+/** −1 point per 1 % of the baseline over the limit (at least 1, at most 20). */
 export function overPenalty(totalCg: number, limitG: number, baselineG: number): number {
-  return -Math.min(20, Math.max(1, roundHalfUp(totalCg - limitG * 100, baselineG)))
+  return -Math.min(20, Math.max(1, roundHalfUp(100 * (totalCg - gramsToCg(limitG)), gramsToCg(baselineG))))
 }
 
 export function metBasePoints(totalCg: number, limitG: number): number {
   if (limitG === 0) return 15
-  const limitCg = limitG * 100
+  const limitCg = gramsToCg(limitG)
   return 10 + roundHalfUp(5 * (limitCg - totalCg), limitCg)
 }
 
@@ -55,7 +58,7 @@ export function applyStreakBonus(points: number, streak: number): number {
 }
 
 export function scoreDay(input: DayScoreInput, prev: ScoreState): DayScore {
-  const limitCg = input.limitG * 100
+  const limitCg = gramsToCg(input.limitG)
   if (!input.logged) {
     if (input.isToday) return { status: 'pending', points: 0, state: prev }
     const missedRun = prev.missedRun + 1

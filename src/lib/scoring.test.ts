@@ -10,6 +10,7 @@ describe('daily points', () => {
     expect(metBasePoints(500, 10)).toBe(13) // 5 · 0.5 = 2.5 → 3
     expect(metBasePoints(0, 10)).toBe(15)
     expect(metBasePoints(0, 0)).toBe(15) // L = 0 and A = 0
+    expect(metBasePoints(100, 1.5)).toBe(12) // half-gram limit: 5 · 0.5 / 1.5 = 1.67 → 2
   })
 
   it('penalizes going over relative to the baseline, between −1 and −20', () => {
@@ -18,6 +19,8 @@ describe('daily points', () => {
     expect(overPenalty(1500, 10, 40)).toBe(-13) // 12.5 → 13
     expect(overPenalty(5000, 10, 40)).toBe(-20) // capped
     expect(overPenalty(200, 0, 10)).toBe(-20) // works when L = 0
+    expect(overPenalty(250, 1.5, 2.5)).toBe(-20) // 1 g over a 2.5 g baseline = 40 % → capped
+    expect(overPenalty(155, 1.5, 12.5)).toBe(-1) // 0.05 g over 12.5 g = 0.4 % → minimum
   })
 
   it('grades consecutive missed days and caps at −40', () => {

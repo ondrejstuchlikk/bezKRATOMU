@@ -13,6 +13,14 @@ export function toGrams(amount: number, unit: InputUnit, teaspoonGrams: number |
   return round2(amount * teaspoonGrams)
 }
 
+/**
+ * Teaspoons that fit within `grams`, rounded down to 0.1 so that taking this many
+ * spoons never exceeds the given amount.
+ */
+export function gramsToTeaspoons(grams: number, teaspoonGrams: number): number {
+  return Math.floor((grams / teaspoonGrams) * 10 + 1e-9) / 10
+}
+
 export function gramsToCg(grams: number): number {
   return Math.round(grams * 100)
 }

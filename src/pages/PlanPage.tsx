@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { backend } from '../api'
 import { PlanPreviewChart } from '../components/charts'
 import { Button, ButtonLink, Card, ErrorState, errorMessage, Loading, PageHeader } from '../components/ui'
-import { useActivePlan, useRefreshAfterChange, useToday } from '../hooks/queries'
+import { useActivePlan, useRefreshAfterChange, useSettings, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { formatShortDate, formatWeekdayDate } from '../lib/time'
 import { limitOn } from '../lib/plan'
+import { formatGrams, gramsToTeaspoons } from '../lib/units'
 
 export default function PlanPage() {
   const plan = useActivePlan()
   const today = useToday()
+  const settings = useSettings()
   const refresh = useRefreshAfterChange()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +34,8 @@ export default function PlanPage() {
   }
 
   const p = plan.data
-  const current = limitOn(p.days, today)
+  const currentLimit = limitOn(p.days, today)?.limitG ?? p.targetG
+  const teaspoonGrams = settings.data?.teaspoonGrams ?? null
   const finished = !p.isPaused && p.endDate !== null && today >= p.endDate
   const preset = cs.wizard.presets[p.preset]
 
@@ -59,7 +62,10 @@ export default function PlanPage() {
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="text-muted">{cs.plan.todayLimit}</dt>
-            <dd className="text-lg font-semibold">{current?.limitG ?? p.targetG} g</dd>
+            <dd className="text-lg font-semibold">{formatGrams(currentLimit)}</dd>
+            {teaspoonGrams && currentLimit > 0 && (
+              <dd className="text-sm text-muted">{cs.dose.tspApprox(gramsToTeaspoons(currentLimit, teaspoonGrams))}</dd>
+            )}
           </div>
           <div>
             <dt className="text-muted">{cs.plan.preset}</dt>

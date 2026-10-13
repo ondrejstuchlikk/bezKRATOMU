@@ -3,6 +3,7 @@
 import type { AppErrorCode, FeedEventType } from '../api/types'
 import type { Preset } from '../lib/plan'
 import type { DayStatus } from '../lib/scoring'
+import { formatGrams, formatNumber } from '../lib/units'
 
 /** Czech plural: 1 den, 2–4 dny, 5+ dní. */
 export function plural(n: number, one: string, few: string, many: string): string {
@@ -135,9 +136,9 @@ export const cs = {
     changeTitle: 'Změna plánu',
     step: (n: number, of: number) => `Krok ${n} z ${of}`,
     baselineQ: 'Kolik gramů si teď bereš za den?',
-    baselineHint: 'Celé gramy. Počítej obvyklý den.',
+    baselineHint: 'Po půl gramech (např. 3 nebo 3,5). Počítej obvyklý den.',
     targetQ: 'Kolik chceš brát na konci?',
-    targetHint: '0 = úplně přestat. Můžeš si zvolit i nižší udržovací dávku.',
+    targetHint: '0 = úplně přestat. Můžeš si zvolit i nižší udržovací dávku (po půl gramech).',
     paceQ: 'Jak rychle chceš snižovat?',
     curveQ: 'Tvar plánu',
     customDays: 'Počet dní',
@@ -157,14 +158,14 @@ export const cs = {
       linear: { name: 'Rovnoměrný', desc: 'Každý den zhruba stejný pokles.' },
     },
     preview: 'Náhled plánu',
-    summary: (b: number, t: number, d: number) => `${b} g → ${t} g za ${days(d)}`,
+    summary: (b: number, t: number, d: number) => `${formatGrams(b)} → ${formatGrams(t)} za ${days(d)}`,
     stepRow: (from: number, to: number) => (from === to ? `Den ${from}` : `Dny ${from}–${to}`),
     afterEnd: 'Po skončení plánu zůstává limit na cílové dávce.',
     start: 'Začít plán',
     replaceNote: 'Nový plán začne dnes. Ten dosavadní zůstane v historii a grafech.',
     errors: {
-      invalid_baseline: 'Zadej celé číslo od 1 do 300.',
-      invalid_target: 'Cíl musí být menší než současná dávka.',
+      invalid_baseline: 'Zadej dávku od 0,5 do 300 g po půl gramech (např. 2 nebo 2,5).',
+      invalid_target: 'Cíl musí být menší než současná dávka, po půl gramech (např. 0, 0,5 nebo 1).',
       invalid_duration: 'Zadej počet dní od 1 do 365.',
     },
     dayAxis: 'den',
@@ -207,6 +208,9 @@ export const cs = {
     unitG: 'g',
     unitTsp: 'lžička',
     tspAmount: (n: string) => `${n} ${'lžič.'}`,
+    /** Shown next to grams for users with a configured teaspoon: "≈ 1,2 lžič." */
+    tspApprox: (tsp: number) => `≈ ${formatNumber(tsp)} lžič.`,
+    tspSetupHint: 'Tip: nastav si v Nastavení velikost lžičky a uvidíš limit i v lžičkách.',
     equals: (g: string) => `= ${g}`,
     day: 'Den',
     todayLabel: 'Dnes',
@@ -340,7 +344,7 @@ export const cs = {
     resume: 'Pokračovat v plánu',
     pausedSince: (date: string) => `Pozastaveno od ${date}`,
     change: 'Změnit plán',
-    finished: (t: number) => `Plán je dokončený 🎉 Limit zůstává na ${t} g.`,
+    finished: (t: number) => `Plán je dokončený 🎉 Limit zůstává na ${formatGrams(t)}.`,
     none: 'Zatím nemáš žádný plán.',
     create: 'Vytvořit plán',
   },

@@ -13,7 +13,7 @@ const at = (offset: number) => addDays(TODAY, offset)
 
 describe('SQL ↔ TypeScript parity', () => {
   it('matches the finalized + provisional days computed by Postgres', () => {
-    const plan = { id: 'b1', baselineG: 20, targetG: 2, durationDays: 10, curve: 'decelerating' as const, startDate: at(-12), endedOn: null }
+    const plan = { id: 'b1', baselineG: 20.5, targetG: 1.5, durationDays: 10, curve: 'decelerating' as const, startDate: at(-12), endedOn: null }
     const planDays = buildPlanDays(plan, [{ startDate: at(-8), endDate: at(-7) }])
     const doses: [number, number][] = [
       [-12, 10], [-12, 9.5], [-11, 17], [-8, 5.25], [-8, 5.25], [-8, 5.25], [-6, 30],
@@ -28,7 +28,7 @@ describe('SQL ↔ TypeScript parity', () => {
     }
     activity.set(at(-7), { totalCg: 0, doseCount: 0, zeroDay: true })
 
-    const ts = computeDays(planDays, new Map([['b1', 20]]), activity, TODAY).map((r) => ({
+    const ts = computeDays(planDays, new Map([['b1', 20.5]]), activity, TODAY).map((r) => ({
       offset: diffDays(r.date, TODAY),
       limit_g: r.limitG,
       total_g: r.totalG,

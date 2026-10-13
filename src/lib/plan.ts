@@ -1,6 +1,6 @@
-// Taper plan generation. The database (supabase/migrations/0003_plans.sql)
-// implements exactly the same integer arithmetic, so the preview shown in the
-// wizard matches the authoritative plan_days written by the server.
+// Taper plan generation. The database (supabase/migrations/0006_half_grams.sql)
+// implements exactly the same integer arithmetic (in half-gram units), so the
+// preview shown in the wizard matches the authoritative plan_days written by the server.
 
 import { addDays, type ISODate } from './time'
 
@@ -17,6 +17,8 @@ export const PRESET_DAYS: Record<Exclude<Preset, 'custom'>, number> = {
 
 export const PRESETS: Preset[] = ['express', 'fast', 'medium', 'slow', 'very_slow', 'custom']
 
+/** Plans and limits move in half-gram steps (0.5, 1, 1.5, …). */
+export const PLAN_STEP_G = 0.5
 export const MAX_BASELINE_G = 300
 export const MAX_DURATION_DAYS = 365
 
@@ -29,9 +31,14 @@ export interface PlanParams {
 
 export type PlanError = 'invalid_baseline' | 'invalid_target' | 'invalid_duration'
 
+/** True for whole and half grams: 0, 0.5, 1, 1.5, … */
+export function isHalfGram(g: number): boolean {
+  return Number.isInteger(g * 2)
+}
+
 export function validatePlan(p: PlanParams): PlanError | null {
-  if (!Number.isInteger(p.baselineG) || p.baselineG < 1 || p.baselineG > MAX_BASELINE_G) return 'invalid_baseline'
-  if (!Number.isInteger(p.targetG) || p.targetG < 0 || p.targetG >= p.baselineG) return 'invalid_target'
+  if (!isHalfGram(p.baselineG) || p.baselineG < PLAN_STEP_G || p.baselineG > MAX_BASELINE_G) return 'invalid_baseline'
+  if (!isHalfGram(p.targetG) || p.targetG < 0 || p.targetG >= p.baselineG) return 'invalid_target'
   if (!Number.isInteger(p.durationDays) || p.durationDays < 1 || p.durationDays > MAX_DURATION_DAYS) return 'invalid_duration'
   return null
 }
@@ -39,19 +46,21 @@ export function validatePlan(p: PlanParams): PlanError | null {
 /**
  * Daily limit on day `t` of the plan (day 0 = baseline, day `durationDays` = target).
  *
- * L(t) = target + ceil((baseline − target) · ((D − t) / D)^k), k = 1 (linear) or 2 (decelerating).
- * Computed with integers only, so JavaScript and Postgres agree exactly. Using
- * ceil guarantees the target is first reached on the last day of the plan.
+ * L(t) = target + ceil₀.₅((baseline − target) · ((D − t) / D)^k), k = 1 (linear) or 2 (decelerating),
+ * where ceil₀.₅ rounds up to the next half gram. Computed with integers (half-gram
+ * units) only, so JavaScript and Postgres agree exactly. Rounding up guarantees
+ * the target is first reached on the last day of the plan.
  */
 export function planLimit(p: PlanParams, t: number): number {
   if (t <= 0) return p.baselineG
   if (t >= p.durationDays) return p.targetG
-  const drop = p.baselineG - p.targetG
+  const baseline2 = Math.round(p.baselineG * 2)
+  const target2 = Math.round(p.targetG * 2)
   const remaining = p.durationDays - t
   const k = p.curve === 'linear' ? 1 : 2
-  const num = drop * remaining ** k
+  const num = (baseline2 - target2) * remaining ** k
   const den = p.durationDays ** k
-  return p.targetG + Math.floor((num + den - 1) / den)
+  return (target2 + Math.floor((num + den - 1) / den)) / 2
 }
 
 /** Limits for days 0..durationDays (inclusive). Throws on invalid input. */

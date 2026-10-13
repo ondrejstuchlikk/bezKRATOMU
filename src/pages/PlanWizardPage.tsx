@@ -5,20 +5,23 @@ import { PlanPreviewChart } from '../components/charts'
 import { BareLayout } from '../components/layout'
 import { NumberStepper } from '../components/NumberStepper'
 import { Button, Card, cx, errorMessage, Loading } from '../components/ui'
-import { useActivePlan, useRefreshAfterChange, useToday } from '../hooks/queries'
+import { useActivePlan, useRefreshAfterChange, useSettings, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import {
   generatePlan,
   groupPlanSteps,
+  isHalfGram,
   limitOn,
   MAX_BASELINE_G,
   MAX_DURATION_DAYS,
+  PLAN_STEP_G,
   PRESET_DAYS,
   PRESETS,
   validatePlan,
   type Curve,
   type Preset,
 } from '../lib/plan'
+import { formatGrams, gramsToTeaspoons } from '../lib/units'
 
 const STEPS = 3
 
@@ -38,6 +41,7 @@ function Wizard({
   const navigate = useNavigate()
   const refresh = useRefreshAfterChange()
   const today = useToday()
+  const teaspoonGrams = useSettings().data?.teaspoonGrams ?? null
   const heldLimit = currentLimit ? (limitOn(currentLimit.days, today)?.limitG ?? currentLimit.targetG) : null
 
   const [step, setStep] = useState(1)
@@ -54,8 +58,12 @@ function Wizard({
   const validation = validatePlan(params)
   const limits = validation ? null : generatePlan(params)
 
-  const baselineError = baseline !== null && (baseline < 1 || baseline > MAX_BASELINE_G) ? cs.wizard.errors.invalid_baseline : null
-  const targetError = target !== null && baseline !== null && target >= baseline ? cs.wizard.errors.invalid_target : null
+  const baselineError =
+    baseline !== null && (baseline < PLAN_STEP_G || baseline > MAX_BASELINE_G || !isHalfGram(baseline))
+      ? cs.wizard.errors.invalid_baseline
+      : null
+  const targetError =
+    target !== null && baseline !== null && (target >= baseline || !isHalfGram(target)) ? cs.wizard.errors.invalid_target : null
 
   async function submit() {
     if (!limits) return
@@ -95,7 +103,7 @@ function Wizard({
         <div className="space-y-6">
           <Card className="space-y-4">
             <h2 className="text-lg font-semibold">{cs.wizard.baselineQ}</h2>
-            <NumberStepper label={cs.wizard.baselineQ} value={baseline} onChange={setBaseline} integer min={1} max={MAX_BASELINE_G} suffix="g" />
+            <NumberStepper label={cs.wizard.baselineQ} value={baseline} onChange={setBaseline} step={PLAN_STEP_G} min={PLAN_STEP_G} max={MAX_BASELINE_G} suffix="g" />
             <p className={cx('text-sm', baselineError ? 'text-over' : 'text-muted')}>{baselineError ?? cs.wizard.baselineHint}</p>
           </Card>
           <Button className="w-full" disabled={!baseline || !!baselineError} onClick={() => setStep(2)}>
@@ -108,7 +116,7 @@ function Wizard({
         <div className="space-y-6">
           <Card className="space-y-4">
             <h2 className="text-lg font-semibold">{cs.wizard.targetQ}</h2>
-            <NumberStepper label={cs.wizard.targetQ} value={target} onChange={setTarget} integer min={0} max={(baseline ?? 1) - 1} suffix="g" />
+            <NumberStepper label={cs.wizard.targetQ} value={target} onChange={setTarget} step={PLAN_STEP_G} min={0} max={(baseline ?? PLAN_STEP_G) - PLAN_STEP_G} suffix="g" />
             <p className={cx('text-sm', targetError ? 'text-over' : 'text-muted')}>{targetError ?? cs.wizard.targetHint}</p>
           </Card>
           <Button className="w-full" disabled={target === null || !!targetError} onClick={() => setStep(3)}>
@@ -189,11 +197,17 @@ function Wizard({
                 {groupPlanSteps(limits).map((s) => (
                   <li key={s.fromDay} className="flex justify-between px-4 py-2">
                     <span className="text-muted">{cs.wizard.stepRow(s.fromDay + 1, s.toDay + 1)}</span>
-                    <span className="font-semibold tabular-nums">{s.limitG} g</span>
+                    <span className="text-right tabular-nums">
+                      <span className="font-semibold">{formatGrams(s.limitG)}</span>
+                      {teaspoonGrams && s.limitG > 0 && (
+                        <span className="ml-2 text-muted">{cs.dose.tspApprox(gramsToTeaspoons(s.limitG, teaspoonGrams))}</span>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
               <p className="text-sm text-muted">{cs.wizard.afterEnd}</p>
+              {!teaspoonGrams && <p className="text-sm text-muted">{cs.dose.tspSetupHint}</p>}
             </Card>
           )}
 

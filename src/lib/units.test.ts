@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { isValidPin, slugifyNickname, validateNickname } from './nickname'
 import { addDays, diffDays, pragueDate, pragueLocalToInstant, pragueTime } from './time'
-import { gramsToCg, parseDecimal, toGrams } from './units'
+import { gramsToCg, gramsToTeaspoons, parseDecimal, toGrams } from './units'
 
 describe('units', () => {
+  it('converts a limit to teaspoons, rounding down to 0.1', () => {
+    expect(gramsToTeaspoons(3, 2.5)).toBe(1.2)
+    expect(gramsToTeaspoons(5, 2.5)).toBe(2) // exact, no floating-point drift
+    expect(gramsToTeaspoons(2.5, 3)).toBe(0.8) // 0.833… → never above the limit
+    expect(gramsToTeaspoons(0.5, 2.4)).toBe(0.2)
+  })
+
   it('converts teaspoons to grams with 2 decimals', () => {
     expect(toGrams(2, 'tsp', 2.4)).toBe(4.8)
     expect(toGrams(1.5, 'tsp', 2.33)).toBe(3.5) // 3.495 → 3.5

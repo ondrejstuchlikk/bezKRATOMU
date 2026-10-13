@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlanDays, generatePlan, groupPlanSteps, limitOn, validatePlan, type PlanParams } from './plan'
+import { buildPlanDays, generatePlan, groupPlanSteps, isHalfGram, limitOn, validatePlan, type PlanParams } from './plan'
 
 const isNonIncreasing = (xs: number[]) => xs.every((x, i) => i === 0 || x <= xs[i - 1])
 
@@ -8,7 +8,7 @@ function checkInvariants(p: PlanParams) {
   expect(limits).toHaveLength(p.durationDays + 1)
   expect(limits[0]).toBe(p.baselineG)
   expect(limits[limits.length - 1]).toBe(p.targetG)
-  expect(limits.every(Number.isInteger)).toBe(true)
+  expect(limits.every(isHalfGram)).toBe(true)
   expect(isNonIncreasing(limits)).toBe(true)
   // The target is reached only on the last day.
   expect(limits.slice(0, -1).every((l) => l > p.targetG)).toBe(true)
@@ -16,11 +16,19 @@ function checkInvariants(p: PlanParams) {
 }
 
 describe('generatePlan', () => {
-  it('handles baseline 1 → 0', () => {
+  it('handles baseline 1 → 0 with a half-gram step', () => {
     expect(checkInvariants({ baselineG: 1, targetG: 0, durationDays: 14, curve: 'decelerating' })).toEqual([
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+      1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0,
     ])
     expect(checkInvariants({ baselineG: 1, targetG: 0, durationDays: 1, curve: 'linear' })).toEqual([1, 0])
+  })
+
+  it('supports half-gram baselines', () => {
+    expect(checkInvariants({ baselineG: 1.5, targetG: 0, durationDays: 5, curve: 'linear' })).toEqual([1.5, 1.5, 1, 1, 0.5, 0])
+    expect(checkInvariants({ baselineG: 2.5, targetG: 0, durationDays: 14, curve: 'decelerating' })).toEqual([
+      2.5, 2.5, 2, 2, 1.5, 1.5, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0,
+    ])
+    checkInvariants({ baselineG: 7.5, targetG: 0.5, durationDays: 28, curve: 'decelerating' })
   })
 
   it('handles baseline 50 → 0 in 5 days', () => {
@@ -35,9 +43,12 @@ describe('generatePlan', () => {
   it('handles baseline 3 → 0 in 84 days with plateaus', () => {
     const limits = checkInvariants({ baselineG: 3, targetG: 0, durationDays: 84, curve: 'decelerating' })
     expect(groupPlanSteps(limits)).toEqual([
-      { fromDay: 0, toDay: 15, limitG: 3 },
-      { fromDay: 16, toDay: 35, limitG: 2 },
-      { fromDay: 36, toDay: 83, limitG: 1 },
+      { fromDay: 0, toDay: 7, limitG: 3 },
+      { fromDay: 8, toDay: 15, limitG: 2.5 },
+      { fromDay: 16, toDay: 24, limitG: 2 },
+      { fromDay: 25, toDay: 35, limitG: 1.5 },
+      { fromDay: 36, toDay: 49, limitG: 1 },
+      { fromDay: 50, toDay: 83, limitG: 0.5 },
       { fromDay: 84, toDay: 84, limitG: 0 },
     ])
     checkInvariants({ baselineG: 3, targetG: 0, durationDays: 84, curve: 'linear' })
@@ -57,17 +68,20 @@ describe('generatePlan', () => {
   })
 
   it('keeps invariants across many combinations', () => {
-    for (const baselineG of [1, 2, 7, 30, 120, 300])
+    for (const baselineG of [0.5, 1, 1.5, 2, 7, 12.5, 30, 120, 300])
       for (const durationDays of [1, 5, 14, 28, 56, 84, 365])
         for (const curve of ['linear', 'decelerating'] as const)
-          for (const targetG of [0, Math.floor(baselineG / 2)])
+          for (const targetG of [0, Math.floor(baselineG) / 2])
             if (targetG < baselineG) checkInvariants({ baselineG, targetG, durationDays, curve })
   })
 
   it('rejects invalid input', () => {
     expect(validatePlan({ baselineG: 10, targetG: 10, durationDays: 14, curve: 'linear' })).toBe('invalid_target')
     expect(validatePlan({ baselineG: 0, targetG: 0, durationDays: 14, curve: 'linear' })).toBe('invalid_baseline')
-    expect(validatePlan({ baselineG: 10.5, targetG: 0, durationDays: 14, curve: 'linear' })).toBe('invalid_baseline')
+    expect(validatePlan({ baselineG: 10.25, targetG: 0, durationDays: 14, curve: 'linear' })).toBe('invalid_baseline')
+    expect(validatePlan({ baselineG: 10, targetG: 0.3, durationDays: 14, curve: 'linear' })).toBe('invalid_target')
+    expect(validatePlan({ baselineG: 0.5, targetG: 0, durationDays: 14, curve: 'linear' })).toBeNull()
+    expect(validatePlan({ baselineG: 10.5, targetG: 2.5, durationDays: 14, curve: 'linear' })).toBeNull()
     expect(validatePlan({ baselineG: 10, targetG: 0, durationDays: 0, curve: 'linear' })).toBe('invalid_duration')
     expect(() => generatePlan({ baselineG: 5, targetG: 5, durationDays: 5, curve: 'linear' })).toThrow()
   })

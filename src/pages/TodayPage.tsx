@@ -17,7 +17,7 @@ import {
 } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { addDays, formatLongDate, pragueTime, type ISODate } from '../lib/time'
-import { formatGrams, formatNumber, round2 } from '../lib/units'
+import { formatGrams, formatNumber, gramsToTeaspoons, round2 } from '../lib/units'
 
 function sumGrams(doses: Dose[]) {
   return round2(doses.reduce((s, d) => s + d.grams, 0))
@@ -74,7 +74,7 @@ export function TodayPage() {
         </Link>
       )}
 
-      {todayRow && <TodayCard row={todayRow} doses={todayDoses} />}
+      {todayRow && <TodayCard row={todayRow} doses={todayDoses} teaspoonGrams={settings.data.teaspoonGrams} />}
 
       <Button className="w-full text-lg" onClick={() => setSheet({ dose: null, date: today })}>
         <PlusIcon className="size-5" /> {cs.today.addDose}
@@ -135,9 +135,10 @@ export function TodayPage() {
   )
 }
 
-function TodayCard({ row, doses }: { row: DayResult; doses: Dose[] }) {
+function TodayCard({ row, doses, teaspoonGrams }: { row: DayResult; doses: Dose[]; teaspoonGrams: number | null }) {
   const limit = row.limitG ?? 0
   const taken = sumGrams(doses)
+  const left = round2(limit - taken)
   const ratio = limit > 0 ? taken / limit : taken > 0 ? 2 : 0
   const tone = ratio > 1 ? 'over' : ratio >= 0.8 ? 'warn' : 'accent'
   const barColor = { over: 'bg-over', warn: 'bg-warn', accent: 'bg-accent' }[tone]
@@ -148,9 +149,12 @@ function TodayCard({ row, doses }: { row: DayResult; doses: Dose[] }) {
         <div>
           <div className="text-xs font-medium tracking-wide text-muted uppercase">{cs.today.limit}</div>
           <div className="font-display text-5xl font-semibold tabular-nums">
-            {limit}
+            {formatNumber(limit)}
             <span className="ml-1 text-2xl text-muted">g</span>
           </div>
+          {teaspoonGrams && limit > 0 && (
+            <div className="mt-1 font-semibold text-muted tabular-nums">{cs.dose.tspApprox(gramsToTeaspoons(limit, teaspoonGrams))}</div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <StatusBadge status={row.status} provisional={row.status !== 'pending'} />
@@ -174,10 +178,13 @@ function TodayCard({ row, doses }: { row: DayResult; doses: Dose[] }) {
           <div className="text-xl font-semibold tabular-nums">{formatGrams(taken)}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-muted">{taken > limit ? cs.today.overBy : cs.today.remaining}</div>
-          <div className={cx('text-xl font-semibold tabular-nums', taken > limit && 'text-over')}>
-            {formatGrams(round2(Math.abs(limit - taken)))}
+          <div className="text-sm text-muted">{left < 0 ? cs.today.overBy : cs.today.remaining}</div>
+          <div className={cx('text-xl font-semibold tabular-nums', left < 0 && 'text-over')}>
+            {formatGrams(Math.abs(left))}
           </div>
+          {teaspoonGrams && left > 0 && (
+            <div className="text-sm text-muted tabular-nums">{cs.dose.tspApprox(gramsToTeaspoons(left, teaspoonGrams))}</div>
+          )}
         </div>
       </div>
 
@@ -285,7 +292,7 @@ function YesterdayCard({
         <div>
           <h2 className="font-semibold">{cs.today.yesterday}</h2>
           <p className="text-sm text-muted">
-            {row.zeroDay ? cs.day.zeroDay : `${formatGrams(row.totalG ?? 0)} / ${row.limitG} g · ${cs.today.yesterdayDoses(doses.length)}`}
+            {row.zeroDay ? cs.day.zeroDay : `${formatGrams(row.totalG ?? 0)} / ${formatGrams(row.limitG ?? 0)} · ${cs.today.yesterdayDoses(doses.length)}`}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

@@ -17,7 +17,7 @@ import {
 import type { DayResult, Dose } from '../api'
 import { cs } from '../i18n/cs'
 import { formatShortDate, pragueHour, type ISODate } from '../lib/time'
-import { formatNumber } from '../lib/units'
+import { formatGrams, formatNumber } from '../lib/units'
 import { useThemeColors } from '../lib/theme'
 
 const HEIGHT = 220
@@ -55,11 +55,11 @@ export function PlanPreviewChart({ limits }: { limits: number[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
         {grid}
         <XAxis dataKey="day" {...axis} interval="preserveStartEnd" minTickGap={24} />
-        <YAxis {...axis} allowDecimals={false} width={44} />
+        <YAxis {...axis} width={44} tickFormatter={(v) => formatNumber(Number(v))} />
         <Tooltip
           {...tooltip}
           labelFormatter={(d) => `${cs.wizard.dayAxis} ${d}`}
-          formatter={(v) => [`${v} g`, cs.chart.plan]}
+          formatter={(v) => [formatGrams(Number(v)), cs.chart.plan]}
         />
         <Area
           type="stepAfter"
@@ -145,7 +145,7 @@ export function TimeOfDayChart({ doses }: { doses: Dose[] }) {
       <BarChart data={counts} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
         {grid}
         <XAxis dataKey="hour" {...axis} ticks={[0, 6, 12, 18, 23]} tickFormatter={(h) => `${h}h`} />
-        <YAxis {...axis} allowDecimals={false} width={44} />
+        <YAxis {...axis} width={44} />
         <Tooltip {...tooltip} labelFormatter={(h) => `${h}:00–${h}:59`} formatter={(v) => [v, cs.chart.timeOfDayHint]} />
         <Bar dataKey="count" fill={c.accent} radius={[4, 4, 0, 0]} isAnimationActive={false} />
       </BarChart>

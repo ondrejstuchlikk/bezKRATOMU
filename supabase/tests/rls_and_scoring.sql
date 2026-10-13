@@ -20,7 +20,7 @@ select nickname, nickname_slug from profiles order by nickname;
 
 -- ===== Scenario for user B (history, built directly as the server would) =====
 insert into plans (id, user_id, baseline_g, target_g, start_date, duration_days, curve, preset)
-  values ('00000000-0000-0000-0000-0000000000b1', :'b', 20, 2, private.prague_today() - 12, 10, 'decelerating', 'custom');
+  values ('00000000-0000-0000-0000-0000000000b1', :'b', 20.5, 1.5, private.prague_today() - 12, 10, 'decelerating', 'custom');
 insert into pauses (plan_id, user_id, start_date, end_date)
   values ('00000000-0000-0000-0000-0000000000b1', :'b', private.prague_today() - 8, private.prague_today() - 7);
 select private.rebuild_plan_days('00000000-0000-0000-0000-0000000000b1');
@@ -55,6 +55,12 @@ select create_plan(20, 0, 14, 'decelerating', 'fast') is not null as plan_create
 select string_agg(limit_g::text, ',' order by date) as a_limits from plan_days;
 select public.expect_error($$select create_plan(20, 0, 10, 'linear', 'fast')$$, 'preset/duration mismatch');
 select public.expect_error($$select create_plan(10, 10, 14, 'linear', 'fast')$$, 'baseline = target');
+select public.expect_error($$select create_plan(2.3, 0, 14, 'linear', 'fast')$$, 'baseline not a half gram');
+select public.expect_error($$select create_plan(2, 0.25, 14, 'linear', 'fast')$$, 'target not a half gram');
+select public.expect_error($$select create_plan(0, 0, 14, 'linear', 'fast')$$, 'baseline 0');
+\echo '--- half-gram plan 1.5 g → 0 in 5 days (expected 1.5,1.5,1.0,1.0,0.5,0.0)'
+select create_plan(1.5, 0, 5, 'linear', 'express') is not null as half_plan_created;
+select string_agg(limit_g::text, ',' order by date) as a_half_limits from plan_days;
 
 insert into doses (taken_at, grams, input_unit, input_amount, feeling, note) values (now(), 2.5, 'tsp', 1, 4, 'ok');
 insert into doses (taken_at, grams, input_unit, input_amount) values (now() - interval '1 day', 1, 'g', 1);
