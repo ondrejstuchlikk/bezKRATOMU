@@ -108,8 +108,18 @@ select delete_push_subscription('https://web.push.apple.com/dev2');
 select count(*) as a_sees_push_rows from push_subscriptions;
 select public.expect_error($$select private.claim_push_notifications()$$, 'claim notifications as user');
 reset role;
+-- B logs 0.5 g today (limit 1.5 g → under half); C has a plan but logged nothing.
+select set_config('request.jwt.claim.sub', :'b', false) \g /dev/null
+insert into doses (taken_at, grams, input_unit, input_amount) values (now(), 0.5, 'g', 0.5);
+insert into auth.users (email, raw_user_meta_data) values ('cyril@kratom.local', '{"nickname":"Cyril"}') returning id as c \gset
+select set_config('request.jwt.claim.sub', :'c', false) \g /dev/null
+insert into plans (user_id, baseline_g, target_g, start_date, duration_days, curve, preset)
+  values (:'c', 6, 0, private.prague_today() - 1, 14, 'linear', 'fast') returning id as cp \gset
+select private.rebuild_plan_days(:'cp');
+select save_push_subscription('https://fcm.googleapis.com/fcm/send/dev3', 'p256dh-c', 'auth-c');
+update user_settings set reminder_hour = extract(hour from now() at time zone 'Europe/Prague') where user_id = :'c';
 select count(*) as push_rows_total from push_subscriptions;
-\echo '--- due (expected for B only: reminder + reaction + comment; A already logged today)'
+\echo '--- due (expected: B partial reminder + reaction + comment, C plain reminder; A is over its limit so no reminder)'
 select endpoint, body, url, tag from private.claim_push_notifications() order by tag, body;
 select count(*) as due_again from private.claim_push_notifications();
 select private.remove_push_subscriptions(array['https://web.push.apple.com/dev2']);

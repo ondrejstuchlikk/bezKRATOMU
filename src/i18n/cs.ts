@@ -353,7 +353,7 @@ export const cs = {
     device: 'Upozornění na tomto zařízení',
     deviceHint: 'Zapni na každém telefonu, kde je chceš dostávat.',
     reminder: 'Večerní připomenutí',
-    reminderHint: 'Přijde jen tehdy, když ještě nemáš dnešek zapsaný.',
+    reminderHint: 'Přijde jen tehdy, když máš dnes zapsáno méně než polovinu limitu (nebo nic).',
     reminderOff: 'Vypnuto',
     hour: (h: number) => `${h}:00`,
     social: 'Reakce a komentáře',
