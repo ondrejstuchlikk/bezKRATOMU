@@ -277,6 +277,9 @@ export const cs = {
     },
     empty: 'Zatím tu nikdo není.',
     noPlan: 'bez plánu',
+    lastDays: 'Posledních 5 dní:',
+    legend: { met: 'pod limitem', over: 'nad limitem', none: 'bez záznamu' },
+    dayTitle: (date: string, status: string) => `${date}: ${status}`,
   },
 
   group: {

@@ -1,11 +1,34 @@
+import { useQueries } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { LeaderboardRow } from '../api'
+import { backend, type DayResult, type LeaderboardRow } from '../api'
 import { useMe } from '../auth/SessionProvider'
 import { cx, ErrorState, Loading, PageHeader } from '../components/ui'
-import { useLeaderboard } from '../hooks/queries'
+import { keys, useLeaderboard, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
+import { addDays, formatShortDate, type ISODate } from '../lib/time'
 import { formatPct } from '../lib/units'
+
+/** Finished days shown as squares: the 5 days before today, oldest first. */
+const LAST_DAYS = 5
+
+const squareColor = (status: DayResult['status'] | undefined) =>
+  status === 'met' ? 'bg-accent' : status === 'over' ? 'bg-over' : 'bg-muted/35'
+
+function LastDaysSquares({ dates, days }: { dates: ISODate[]; days: DayResult[] | undefined }) {
+  return (
+    <span className="flex shrink-0 gap-1">
+      {dates.map((date) => {
+        const status = days?.find((d) => d.date === date)?.status
+        const label = cs.leaderboard.dayTitle(
+          formatShortDate(date),
+          status === 'met' || status === 'over' ? cs.status[status] : cs.leaderboard.legend.none,
+        )
+        return <span key={date} title={label} aria-label={label} className={cx('size-3.5 rounded-[4px]', squareColor(status))} />
+      })}
+    </span>
+  )
+}
 
 type Tab = 'points' | 'streak' | 'met' | 'reduction'
 
@@ -27,7 +50,18 @@ function display(tab: Tab, r: LeaderboardRow): string {
 export function LeaderboardPage() {
   const me = useMe()
   const board = useLeaderboard()
-  const [tab, setTab] = useState<Tab>('points')
+  const today = useToday()
+  const [tab, setTab] = useState<Tab>('streak')
+
+  const dates = Array.from({ length: LAST_DAYS }, (_, i) => addDays(today, i - LAST_DAYS))
+  const withPlanIds = (board.data ?? []).filter((r) => r.hasPlan).map((r) => r.userId)
+  const recent = useQueries({
+    queries: withPlanIds.map((id) => ({
+      queryKey: keys.days(id, dates[0], dates[LAST_DAYS - 1]),
+      queryFn: () => backend.getUserDays(id, dates[0], dates[LAST_DAYS - 1]),
+    })),
+  })
+  const recentByUser = new Map(withPlanIds.map((id, i) => [id, recent[i]?.data]))
 
   if (board.isPending) return <Loading />
   if (board.isError) return <ErrorState error={board.error} onRetry={() => board.refetch()} />
@@ -67,6 +101,18 @@ export function LeaderboardPage() {
         </div>
       </div>
 
+      {withPlan.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <span>{cs.leaderboard.lastDays}</span>
+          {(['met', 'over', 'none'] as const).map((k) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className={cx('size-3 rounded-[3px]', squareColor(k === 'none' ? undefined : k))} />
+              {cs.leaderboard.legend[k]}
+            </span>
+          ))}
+        </div>
+      )}
+
       {!board.data.length ? (
         <p className="py-10 text-center text-muted">{cs.leaderboard.empty}</p>
       ) : (
@@ -93,8 +139,11 @@ export function LeaderboardPage() {
                     {row.nickname}
                     {row.userId === me.id && <span className="ml-1.5 text-sm font-normal text-muted">({cs.common.you})</span>}
                   </span>
-                  <span className="text-xs text-muted">
-                    {cs.statusIcon[row.todayStatus]} {cs.status[row.todayStatus]}
+                  <span className="mt-1 flex items-center gap-2 text-xs text-muted">
+                    <LastDaysSquares dates={dates} days={recentByUser.get(row.userId)} />
+                    <span className="truncate">
+                      {cs.statusIcon[row.todayStatus]} {cs.status[row.todayStatus]}
+                    </span>
                   </span>
                 </span>
                 <span className="font-display text-xl font-semibold tabular-nums">{display(tab, row)}</span>
