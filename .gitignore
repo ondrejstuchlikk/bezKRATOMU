@@ -26,3 +26,6 @@ dist-ssr
 # Local env and notes
 .env
 prompt.txt
+
+# Supabase CLI state
+supabase/.temp
