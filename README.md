@@ -6,6 +6,8 @@ reactions/comments for motivation.
 
 **Live:** https://ondrejstuchlikk.github.io/bezKRATOMU/
 
+Changes are listed in [CHANGELOG.md](CHANGELOG.md); notes for AI coding agents are in [CLAUDE.md](CLAUDE.md).
+
 ## Demo mode vs. real mode
 
 - **Demo mode** — when the build has no Supabase credentials, the app runs entirely in the browser
@@ -50,7 +52,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 
 ## Push notifications (one time)
 
-Evening reminder (only if today isn't logged) and reactions/comments, via web push. Android: Chrome.
+Evening reminder (when less than half of today's limit is logged) and reactions/comments, via web push. Android: Chrome.
 iPhone: iOS 16.4+, only when the app is added to the home screen.
 
 1. Generate a key pair: `npx web-push generate-vapid-keys --json`. Put the public key in
@@ -103,5 +105,5 @@ user's data. Requires `brew install postgresql@17` and a running server.
 
 ## Known limitations (v1)
 
-- No PIN reset, no account deletion UI, no push notifications, no data export.
+- No PIN reset, no account deletion UI, no data export.
 - A 6-digit PIN is only as strong as Supabase's sign-in rate limiting; keep the app link among friends.
