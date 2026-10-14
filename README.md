@@ -35,7 +35,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011`, `0012`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):

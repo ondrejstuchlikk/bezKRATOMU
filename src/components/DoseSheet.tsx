@@ -75,7 +75,6 @@ function DoseForm({ onClose, dose, defaultDate, teaspoonGrams, lastDose }: Omit<
     setError(null)
     if (!validAmount) return setError(cs.dose.invalidAmount)
     const takenAt = pragueLocalToInstant(date, time)
-    if (takenAt.getTime() > Date.now() + 60_000) return setError(cs.dose.futureTime)
     setBusy(true)
     try {
       const input = { takenAt, grams, inputUnit: unit, inputAmount: amount!, feeling, note: note.trim() || null }

@@ -66,7 +66,10 @@ select string_agg(limit_g::text, ',' order by date) as a_half_limits from plan_d
 insert into doses (taken_at, grams, input_unit, input_amount, feeling, note) values (now(), 2.5, 'tsp', 1, 4, 'ok');
 insert into doses (taken_at, grams, input_unit, input_amount) values (now() - interval '1 day', 1, 'g', 1);
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now() - interval '3 days', 1, 'g', 1)$$, 'dose older than yesterday');
-select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now() + interval '1 hour', 1, 'g', 1)$$, 'dose in future');
+select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now() + interval '1 day', 1, 'g', 1)$$, 'dose tomorrow');
+insert into doses (taken_at, grams, input_unit, input_amount, note)
+  values (((now() at time zone 'Europe/Prague')::date + time '23:59') at time zone 'Europe/Prague', 1, 'g', 1, 'later today');
+delete from doses where note = 'later today';
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now(), 0, 'g', 0)$$, 'zero grams');
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now(), 500, 'g', 500)$$, 'too many grams');
 select public.expect_error($$insert into doses (user_id, taken_at, grams, input_unit, input_amount) values ('$$ || :'b' || $$', now(), 1, 'g', 1)$$, 'insert dose for someone else');

@@ -423,7 +423,6 @@ export function createDemoBackend(): Backend {
   }
 
   function doseFromInput(input: DoseInput) {
-    if (input.takenAt.getTime() > Date.now() + 5 * 60000) throw new AppError('edit_window_closed')
     const localDate = pragueDate(input.takenAt)
     checkWindow(localDate)
     if (!(input.grams > 0 && input.grams <= 200)) throw new AppError('unknown', 'invalid_grams')

@@ -36,7 +36,6 @@ function toAppError(error: ErrorLike): AppError {
     return new AppError('nickname_taken', message)
   }
   if (error.code === '42501') return new AppError('edit_window_closed', message)
-  if (message === 'dose_in_future') return new AppError('edit_window_closed', message)
   for (const code of SERVER_CODES) {
     if (message.includes(code)) {
       return new AppError(code === 'not_paused' || code === 'no_active_plan' ? 'unknown' : code, message)

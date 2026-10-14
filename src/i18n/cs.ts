@@ -239,7 +239,6 @@ export const cs = {
     delete: 'Smazat dávku',
     confirmDelete: 'Opravdu smazat tuto dávku?',
     invalidAmount: 'Zadej množství větší než 0 (nejvýš 200 g).',
-    futureTime: 'Čas nemůže být v budoucnosti.',
   },
 
   chart: {
