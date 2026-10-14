@@ -1,28 +1,36 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMe } from '../auth/SessionProvider'
+import type { GroupMemberToday } from '../api'
 import { Card, cx, ErrorState, Loading, PageHeader } from '../components/ui'
-import { useFeed, useGroupSummary, useLeaderboard, useToday } from '../hooks/queries'
+import { useFeed, useGroupSummary, useGroupToday, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { formatShortDate } from '../lib/time'
+import { formatNumber } from '../lib/units'
+
+/** Lowest share of the limit first; over a 0 g limit next, nothing logged last. */
+function sortKey(m: GroupMemberToday): number {
+  if (!m.logged) return Infinity
+  return m.pctOfLimit ?? Number.MAX_VALUE
+}
 
 export function GroupPage() {
   const me = useMe()
   const today = useToday()
   const summary = useGroupSummary()
-  const board = useLeaderboard()
+  const group = useGroupToday()
   const [feedOpen, setFeedOpen] = useState(false)
   const feed = useFeed(feedOpen)
 
-  if (summary.isPending || board.isPending) return <Loading />
-  if (summary.isError || board.isError) {
-    return <ErrorState error={summary.error ?? board.error} onRetry={() => { summary.refetch(); board.refetch() }} />
+  if (summary.isPending || group.isPending) return <Loading />
+  if (summary.isError || group.isError) {
+    return <ErrorState error={summary.error ?? group.error} onRetry={() => { summary.refetch(); group.refetch() }} />
   }
 
   const { today: t, yesterday: y } = summary.data
-  const members = board.data.filter((r) => r.hasPlan)
-  const order = { met: 0, pending: 1, over: 2, missed: 3, none: 4 }
-  members.sort((a, b) => order[a.todayStatus] - order[b.todayStatus] || a.nickname.localeCompare(b.nickname, 'cs'))
+  const members = [...group.data].sort(
+    (a, b) => sortKey(a) - sortKey(b) || a.nickname.localeCompare(b.nickname, 'cs'),
+  )
 
   return (
     <div className="space-y-5">
@@ -39,22 +47,29 @@ export function GroupPage() {
 
       <section className="space-y-2">
         <h2 className="px-1 font-semibold">{cs.group.members}</h2>
-        <ul className="grid grid-cols-2 gap-2">
+        <ul className="space-y-2">
           {members.map((m) => (
             <li key={m.userId}>
               <Link
                 to={`/u/${m.userId}/${today}`}
                 className={cx(
-                  'flex min-h-16 items-center gap-2 rounded-2xl border px-3 py-2 transition active:scale-[.98]',
+                  'flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-2 transition active:scale-[.98]',
                   m.userId === me.id ? 'border-accent bg-accent/8' : 'border-line bg-surface',
                 )}
               >
                 <span className="text-xl" aria-hidden>
-                  {cs.statusIcon[m.todayStatus]}
+                  {cs.statusIcon[m.status]}
                 </span>
-                <span className="min-w-0">
-                  <span className="block truncate font-semibold">{m.nickname}</span>
-                  <span className="block text-xs text-muted">{cs.status[m.todayStatus]}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{m.nickname}</span>
+                <span className="shrink-0 text-right tabular-nums">
+                  <span className={cx('block text-lg font-semibold', m.status === 'over' && 'text-over')}>
+                    {!m.logged ? '–' : m.pctOfLimit === null ? cs.group.overZeroLimit : cs.group.pctOfLimit(m.pctOfLimit)}
+                  </span>
+                  {m.logged && m.totalG !== null && m.limitG !== null && (
+                    <span className="block text-xs text-muted">
+                      {cs.group.gramsOfLimit(formatNumber(m.totalG), formatNumber(m.limitG))}
+                    </span>
+                  )}
                 </span>
               </Link>
             </li>

@@ -11,6 +11,7 @@ export const keys = {
   stats: (userId: string) => ['stats', userId] as const,
   leaderboard: ['leaderboard'] as const,
   group: ['group'] as const,
+  groupToday: ['group', 'today'] as const,
   feed: ['feed'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   social: (userId: string, date: ISODate) => ['social', userId, date] as const,
@@ -32,6 +33,8 @@ export const useUserStats = (userId: string) =>
 export const useLeaderboard = () => useQuery({ queryKey: keys.leaderboard, queryFn: () => backend.getLeaderboard() })
 
 export const useGroupSummary = () => useQuery({ queryKey: keys.group, queryFn: () => backend.getGroupSummary() })
+
+export const useGroupToday = () => useQuery({ queryKey: keys.groupToday, queryFn: () => backend.getGroupToday() })
 
 export const useFeed = (enabled = true) =>
   useQuery({ queryKey: keys.feed, queryFn: () => backend.getFeed(40), enabled })

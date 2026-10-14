@@ -14,6 +14,7 @@ import {
   type DoseInput,
   type FeedEvent,
   type FeedEventType,
+  type GroupMemberToday,
   type ReactionEmoji,
   type SessionUser,
   type UserStats,
@@ -322,6 +323,21 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
 
     async getGroupSummary() {
       return check(await sb.rpc('get_group_summary'))
+    },
+
+    async getGroupToday() {
+      const rows = check(await sb.rpc('get_group_today')) as Row[]
+      return rows.map(
+        (r): GroupMemberToday => ({
+          userId: r.user_id as string,
+          nickname: r.nickname as string,
+          status: r.status as DayStatus,
+          logged: Boolean(r.logged),
+          pctOfLimit: num(r.pct_of_limit),
+          totalG: num(r.total_g),
+          limitG: num(r.limit_g),
+        }),
+      )
     },
 
     async getFeed(limit) {

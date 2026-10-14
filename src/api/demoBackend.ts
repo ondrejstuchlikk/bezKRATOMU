@@ -17,6 +17,7 @@ import {
   type Dose,
   type DoseInput,
   type FeedEvent,
+  type GroupMemberToday,
   type ReactionEmoji,
   type SessionUser,
 } from './types'
@@ -711,6 +712,27 @@ export function createDemoBackend(): Backend {
         }
       }
       return summary
+    },
+
+    async getGroupToday() {
+      await delay(60)
+      const viewer = me()
+      const today = pragueToday()
+      return state.users.flatMap((u): GroupMemberToday[] => {
+        const t = rowsOf(u.id).find((r) => r.date === today)
+        if (!t) return []
+        const show = u.id === viewer.id || u.shareGrams
+        const pctOfLimit = !t.logged ? null : t.limitG > 0 ? Math.round((100 * t.totalG) / t.limitG) : t.totalG === 0 ? 0 : null
+        return [{
+          userId: u.id,
+          nickname: u.nickname,
+          status: t.status,
+          logged: t.logged,
+          pctOfLimit,
+          totalG: show ? t.totalG : null,
+          limitG: show ? t.limitG : null,
+        }]
+      })
     },
 
     async getFeed(limit) {

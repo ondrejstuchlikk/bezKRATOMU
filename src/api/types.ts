@@ -115,6 +115,18 @@ export interface GroupSummary {
   yesterday: { participants: number; met: number; over: number; missed: number }
 }
 
+export interface GroupMemberToday {
+  userId: string
+  nickname: string
+  status: DayStatus
+  logged: boolean
+  /** Today's intake as % of today's limit; null when nothing is logged, or something was taken on a 0 g limit. */
+  pctOfLimit: number | null
+  /** Grams are null for other users who don't share exact grams. */
+  totalG: number | null
+  limitG: number | null
+}
+
 export interface FeedEvent {
   id: string
   userId: string
@@ -202,6 +214,7 @@ export interface Backend {
   getUserStats(userId: string): Promise<UserStats>
   getLeaderboard(): Promise<LeaderboardRow[]>
   getGroupSummary(): Promise<GroupSummary>
+  getGroupToday(): Promise<GroupMemberToday[]>
   getFeed(limit: number): Promise<FeedEvent[]>
   getProfile(userId: string): Promise<PublicProfile | null>
 

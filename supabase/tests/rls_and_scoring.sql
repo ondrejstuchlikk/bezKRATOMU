@@ -97,6 +97,8 @@ select date - (:'today')::date as o, status, points, limit_g, total_g, plan_pct,
 \echo '--- leaderboard / summary'
 select nickname, total_points, met_pct, current_streak, best_streak, reduction_limit_pct, reduction_avg_pct, today_status, current_limit_g from get_leaderboard();
 select get_group_summary();
+\echo '--- group today: % of limit for everyone, grams only for A'
+select nickname, status, logged, pct_of_limit, total_g, limit_g from get_group_today() order by nickname;
 \echo '--- push notifications'
 select public.expect_error($$select save_push_subscription('https://evil.example.com/x', 'k', 'a')$$, 'push endpoint must be a push service');
 select save_push_subscription('https://fcm.googleapis.com/fcm/send/dev1', 'p256dh-a', 'auth-a');
@@ -157,6 +159,7 @@ select date - (:'today')::date as o, limit_g, total_g from get_user_days(:'a', (
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;
 select public.expect_error($$select get_leaderboard()$$, 'anon leaderboard');
+select public.expect_error($$select get_group_today()$$, 'anon group today');
 select public.expect_error($$select * from profiles$$, 'anon read profiles');
 select public.expect_error($$select * from doses$$, 'anon read doses');
 reset role;
