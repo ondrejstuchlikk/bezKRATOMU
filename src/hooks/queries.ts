@@ -66,6 +66,16 @@ export function useToday(): ISODate {
   return today
 }
 
+/** Current time, refreshed every `everyMs` (for live "time since" displays). */
+export function useNow(everyMs = 30_000): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), everyMs)
+    return () => clearInterval(id)
+  }, [everyMs])
+  return now
+}
+
 export function useOnline(): boolean {
   const [online, setOnline] = useState(() => navigator.onLine)
   useEffect(() => {

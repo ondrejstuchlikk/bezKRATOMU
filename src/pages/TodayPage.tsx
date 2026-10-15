@@ -9,6 +9,7 @@ import {
   useActivePlan,
   useGroupSummary,
   useMyDoses,
+  useNow,
   useRefreshAfterChange,
   useSettings,
   useToday,
@@ -17,10 +18,16 @@ import {
 } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { addDays, formatLongDate, pragueTime, type ISODate } from '../lib/time'
-import { formatGrams, formatNumber, gramsToTeaspoons, round2 } from '../lib/units'
+import { formatDuration, formatGrams, formatNumber, gramsToTeaspoons, round2 } from '../lib/units'
 
 function sumGrams(doses: Dose[]) {
   return round2(doses.reduce((s, d) => s + d.grams, 0))
+}
+
+/** Minutes since the latest dose that has already happened, or null when there is none. */
+function minutesSinceLastDose(now: Date, times: (string | null | undefined)[]): number | null {
+  const past = times.map((t) => (t ? new Date(t).getTime() : NaN)).filter((t) => t <= now.getTime())
+  return past.length ? (now.getTime() - Math.max(...past)) / 60000 : null
 }
 
 function encouragement(date: ISODate) {
@@ -38,6 +45,7 @@ export function TodayPage() {
   const settings = useSettings()
   const stats = useUserStats(me.id)
   const group = useGroupSummary()
+  const now = useNow()
 
   const [sheet, setSheet] = useState<{ dose: Dose | null; date: ISODate } | null>(null)
 
@@ -60,6 +68,8 @@ export function TodayPage() {
   const todayDoses = doses.data.filter((d) => d.localDate === today)
   const yesterdayDoses = doses.data.filter((d) => d.localDate === yesterday)
   const lastDose = doses.data[doses.data.length - 1] ?? null
+  // The stats know older doses; the dose list catches a dose logged ahead of time once its time comes.
+  const sinceLastMin = minutesSinceLastDose(now, [stats.data?.lastDoseAt, ...doses.data.map((d) => d.takenAt)])
 
   return (
     <div className="space-y-5">
@@ -74,7 +84,9 @@ export function TodayPage() {
         </Link>
       )}
 
-      {todayRow && <TodayCard row={todayRow} doses={todayDoses} teaspoonGrams={settings.data.teaspoonGrams} />}
+      {todayRow && (
+        <TodayCard row={todayRow} doses={todayDoses} teaspoonGrams={settings.data.teaspoonGrams} sinceLastMin={sinceLastMin} />
+      )}
 
       <Button className="w-full text-lg" onClick={() => setSheet({ dose: null, date: today })}>
         <PlusIcon className="size-5" /> {cs.today.addDose}
@@ -135,7 +147,17 @@ export function TodayPage() {
   )
 }
 
-function TodayCard({ row, doses, teaspoonGrams }: { row: DayResult; doses: Dose[]; teaspoonGrams: number | null }) {
+function TodayCard({
+  row,
+  doses,
+  teaspoonGrams,
+  sinceLastMin,
+}: {
+  row: DayResult
+  doses: Dose[]
+  teaspoonGrams: number | null
+  sinceLastMin: number | null
+}) {
   const limit = row.limitG ?? 0
   const taken = sumGrams(doses)
   const left = round2(limit - taken)
@@ -188,6 +210,12 @@ function TodayCard({ row, doses, teaspoonGrams }: { row: DayResult; doses: Dose[
         </div>
       </div>
 
+      {sinceLastMin !== null && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-bg px-3 py-2">
+          <span className="text-sm text-muted">⏱ {cs.today.sinceLastDose}</span>
+          <span className="font-semibold tabular-nums">{formatDuration(sinceLastMin)}</span>
+        </div>
+      )}
       {limit === 0 && taken === 0 && <p className="text-sm font-medium text-accent">{cs.today.zeroTarget}</p>}
       <Link to="/plan" className="inline-block min-h-8 text-sm font-semibold text-accent">
         {cs.today.editPlan}

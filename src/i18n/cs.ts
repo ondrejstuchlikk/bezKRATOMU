@@ -215,6 +215,7 @@ export const cs = {
     ],
     metMessage: 'Krásná práce, drž se! 🌿',
     editPlan: 'Upravit plán ›',
+    sinceLastDose: 'Od poslední dávky',
   },
 
   dose: {
@@ -268,6 +269,11 @@ export const cs = {
     reductionAvg: 'Snížení (7denní průměr)',
     moneySaved: 'Ušetřeno',
     moneyHint: 'Odhad podle tvé ceny za gram.',
+    recordGap: 'Nejdelší čas bez dávky',
+    recordGapRunning: 'běží právě teď ⏱',
+    avgGap5d: 'Průměrný odstup dávek (5 dní)',
+    avgGapAll: 'Průměrný odstup dávek (celkem)',
+    gapHint: 'včetně noci',
   },
 
   leaderboard: {
@@ -277,6 +283,8 @@ export const cs = {
       streak: 'Aktuální série',
       met: 'Splněné dny (%)',
       reduction: 'Snížení (%)',
+      recordGap: 'Nejdelší bez dávky',
+      avgGap: 'Odstup dávek (5 dní)',
     },
     empty: 'Zatím tu nikdo není.',
     noPlan: 'bez plánu',
@@ -291,6 +299,8 @@ export const cs = {
       `Dnes zatím splnilo ${met} z ${of}${pending ? ` · nezapsáno ${pending}` : ''}`,
     yesterdaySummary: (met: number, of: number) => `Včera splnilo ${met} z ${of}`,
     members: 'Jak se dnes daří',
+    recordGap: 'Nejdelší čas bez dávky ve skupině',
+    recordGapRunning: 'pořád běží',
     pctOfLimit: (pct: number) => `${pct} %`,
     overZeroLimit: 'nad limit',
     gramsOfLimit: (total: string, limit: string) => `${total} / ${limit} g`,

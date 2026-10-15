@@ -3,6 +3,20 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-10-15
+
+- **Time between doses.** The today card shows how long it has been since your last dose
+  ("Od poslední dávky 5 h 12 min"), updating every minute. Only you see this.
+- **New stats on Graf and on profiles**: longest time without a dose (it counts live while a break is
+  still going), and the average time between doses over the last 5 days and over all time. Night is
+  included. A break still going counts toward the average only once it is longer than your average,
+  so a fresh dose never pulls it down. Days that weren't logged at all (not even "nic jsem si nevzal(a)")
+  break the count, so forgetting to log doesn't create a fake record. Everyone in the group sees
+  these numbers, but not the time of your last dose.
+- **Leaderboard** has two new tables: *Nejdelší bez dávky* and *Odstup dávek (5 dní)*.
+- **Group page** shows who holds the group's longest time without a dose.
+  Migration: `0014_dose_gaps.sql`.
+
 ## 2026-10-14
 
 - **Group page shows how everyone is doing today.** "Jak se dnes daří" is now a list, one person per row,

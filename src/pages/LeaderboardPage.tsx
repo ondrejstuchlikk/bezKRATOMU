@@ -7,7 +7,7 @@ import { cx, ErrorState, Loading, PageHeader } from '../components/ui'
 import { keys, useLeaderboard, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { addDays, formatShortDate, type ISODate } from '../lib/time'
-import { formatPct } from '../lib/units'
+import { formatDuration, formatPct } from '../lib/units'
 
 /** Finished days shown as squares: the 5 days before today, oldest first. */
 const LAST_DAYS = 5
@@ -30,13 +30,15 @@ function LastDaysSquares({ dates, days }: { dates: ISODate[]; days: DayResult[] 
   )
 }
 
-type Tab = 'points' | 'streak' | 'met' | 'reduction'
+type Tab = 'points' | 'streak' | 'met' | 'reduction' | 'recordGap' | 'avgGap'
 
 const metric: Record<Tab, (r: LeaderboardRow) => number | null> = {
   points: (r) => r.totalPoints,
   streak: (r) => r.currentStreak,
   met: (r) => r.metPct,
   reduction: (r) => r.reductionLimitPct,
+  recordGap: (r) => r.recordGapMin,
+  avgGap: (r) => r.avgGap5dMin,
 }
 
 function display(tab: Tab, r: LeaderboardRow): string {
@@ -44,6 +46,8 @@ function display(tab: Tab, r: LeaderboardRow): string {
   if (v === null) return '–'
   if (tab === 'points') return String(v)
   if (tab === 'streak') return `🔥 ${v}`
+  if (tab === 'recordGap') return `${r.recordGapRunning ? '⏱ ' : ''}${formatDuration(v)}`
+  if (tab === 'avgGap') return formatDuration(v)
   return formatPct(v)
 }
 

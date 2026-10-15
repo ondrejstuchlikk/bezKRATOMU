@@ -55,6 +55,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `src/lib/time.ts` | Prague-time helpers (`pragueToday`, `pragueLocalToInstant`, `addDays`, …). Days are `Europe/Prague` calendar days |
 | `src/lib/units.ts` | `formatGrams`, `formatNumber`, `formatPct`, teaspoon conversion, `MAX_DOSE_G` |
 | `src/lib/plan.ts`, `scoring.ts`, `days.ts` | TS mirrors of the SQL plan/scoring logic (used by demo mode, unit-tested) |
+| `src/lib/gaps.ts` | TS mirror of `private.gap_stats` (time between doses); `gaps.test.ts` pins the same numbers as the SQL checks |
 | `src/lib/parity.test.ts` | Checks TS scoring == SQL scoring using `src/lib/__fixtures__/sql_user_days.json` (written by the SQL test run) |
 | `supabase/migrations/NNNN_*.sql` | Database schema/functions, applied in order |
 | `supabase/tests/rls_and_scoring.sql` | Security + scoring checks; `run.sh` runs them on local Postgres |
@@ -68,7 +69,9 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
   the server (`private.compute_days` / `user_days`); clients can't write them.
 - **Privacy of grams.** Other users' doses are never readable directly. Other users' data comes from
   `security definer` RPCs (`get_user_days`, `get_user_stats`, `get_leaderboard`, `get_group_summary`,
-  `get_group_today`) which return grams only when `p.id = auth.uid() or p.share_grams`. Percentages
+  `get_group_today`) which return grams only when `p.id = auth.uid() or p.share_grams`.
+  Time-between-doses stats (record, averages) are visible to everyone; `last_dose_at` only to the owner.
+  A running record still reveals roughly when someone last dosed — the user accepted that. Percentages
   (% of baseline, % of today's limit) are visible to everyone. The feed and lock-screen push texts never
   contain grams. Any new RPC must follow the same pattern and be granted to `authenticated` only.
 - **Logic exists twice (SQL + TS).** Changing plan or scoring rules means changing the SQL *and*
@@ -89,7 +92,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0013 applied (as of 2026-10-14). `0005_cron.sql` and `0010_push_cron.sql` need
+- Live DB has 0001–0014 applied (as of 2026-10-15). `0005_cron.sql` and `0010_push_cron.sql` need
   pg_cron / Vault and are skipped by the local test runner.
 
 ## Commands and checks
@@ -107,7 +110,9 @@ pg_ctl -D /opt/homebrew/var/postgresql@17 -l <scratch>/pg.log start -w
 supabase/tests/run.sh            # creates bezkratomu_test DB, applies migrations, runs checks, refreshes fixture
 pg_ctl -D /opt/homebrew/var/postgresql@17 stop
 ```
-`expect_error` lines print `NOTICE: ok …`; a failure stops the script (ON_ERROR_STOP). If the fixture
+`expect_error` / `expect_eq` lines print `NOTICE: ok …`; a failure stops the script (ON_ERROR_STOP).
+SQL functions that depend on "now" should take it as a parameter (like `private.gap_stats(p_user, p_now)`)
+so tests can use fixed dates. If the fixture
 `src/lib/__fixtures__/sql_user_days.json` changes, re-run `npm test`.
 
 ## Verify in a browser (demo mode, never touches real data)

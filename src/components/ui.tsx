@@ -164,9 +164,19 @@ export function Points({ value, className }: { value: number; className?: string
   )
 }
 
-export function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function StatTile({
+  label,
+  value,
+  hint,
+  className,
+}: {
+  label: string
+  value: ReactNode
+  hint?: string
+  className?: string
+}) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
+    <div className={cx('rounded-2xl border border-line bg-surface p-4', className)}>
       <div className="text-xs font-medium tracking-wide text-muted uppercase">{label}</div>
       <div className="mt-1 font-display text-2xl font-semibold tabular-nums">{value}</div>
       {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMe } from '../auth/SessionProvider'
-import type { GroupMemberToday } from '../api'
+import type { GroupMemberToday, LeaderboardRow } from '../api'
 import { Card, cx, ErrorState, Loading, PageHeader } from '../components/ui'
-import { useFeed, useGroupSummary, useGroupToday, useToday } from '../hooks/queries'
+import { useFeed, useGroupSummary, useGroupToday, useLeaderboard, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { formatShortDate } from '../lib/time'
-import { formatNumber } from '../lib/units'
+import { formatDuration, formatNumber } from '../lib/units'
 
 /** Lowest share of the limit first; over a 0 g limit next, nothing logged last. */
 function sortKey(m: GroupMemberToday): number {
@@ -14,11 +14,24 @@ function sortKey(m: GroupMemberToday): number {
   return m.pctOfLimit ?? Number.MAX_VALUE
 }
 
+/** Everyone sharing the group's longest time between doses. */
+function groupRecord(rows: LeaderboardRow[]) {
+  const best = Math.max(...rows.map((r) => r.recordGapMin ?? -1))
+  if (best < 0) return null
+  const holders = rows.filter((r) => r.recordGapMin === best)
+  return {
+    minutes: best,
+    names: holders.map((r) => r.nickname).sort((a, b) => a.localeCompare(b, 'cs')).join(', '),
+    running: holders.some((r) => r.recordGapRunning),
+  }
+}
+
 export function GroupPage() {
   const me = useMe()
   const today = useToday()
   const summary = useGroupSummary()
   const group = useGroupToday()
+  const board = useLeaderboard()
   const [feedOpen, setFeedOpen] = useState(false)
   const feed = useFeed(feedOpen)
 
@@ -28,6 +41,7 @@ export function GroupPage() {
   }
 
   const { today: t, yesterday: y } = summary.data
+  const record = board.data ? groupRecord(board.data) : null
   const members = [...group.data].sort(
     (a, b) => sortKey(a) - sortKey(b) || a.nickname.localeCompare(b.nickname, 'cs'),
   )
@@ -44,6 +58,16 @@ export function GroupPage() {
         </div>
         {y.participants > 0 && <p className="text-sm text-muted">{cs.group.yesterdaySummary(y.met, y.participants)}</p>}
       </Card>
+
+      {record && (
+        <div className="rounded-2xl border border-line bg-surface px-4 py-3">
+          <div className="text-xs font-medium tracking-wide text-muted uppercase">🏆 {cs.group.recordGap}</div>
+          <div className="mt-1 font-semibold">
+            {record.names} · <span className="tabular-nums">{formatDuration(record.minutes)}</span>
+            {record.running && <span className="ml-1.5 text-sm font-normal text-muted">⏱ {cs.group.recordGapRunning}</span>}
+          </div>
+        </div>
+      )}
 
       <section className="space-y-2">
         <h2 className="px-1 font-semibold">{cs.group.members}</h2>

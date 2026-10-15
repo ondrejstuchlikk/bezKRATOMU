@@ -55,3 +55,12 @@ export function formatPct(value: number): string {
 export function formatMoney(value: number): string {
   return money.format(value)
 }
+
+/** Whole minutes as "45 min", "5 h 12 min" or "1 d 3 h". */
+export function formatDuration(minutes: number): string {
+  const m = Math.max(0, Math.floor(minutes))
+  if (m < 60) return `${m} min`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} h ${m % 60} min`
+  return `${Math.floor(h / 24)} d ${h % 24} h`
+}

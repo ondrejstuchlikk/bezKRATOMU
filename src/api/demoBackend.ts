@@ -4,6 +4,7 @@
 // Scoring uses the same rules as the server (src/lib/days.ts mirrors SQL).
 
 import { computeDays, computeStats, deriveDayEvents, type DayActivity, type DayRow } from '../lib/days'
+import { computeGapStats } from '../lib/gaps'
 import { slugifyNickname } from '../lib/nickname'
 import { buildPlanDays, customPlanParams, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
 import { addDays, pragueDate, pragueLocalToInstant, pragueToday, type ISODate } from '../lib/time'
@@ -378,7 +379,11 @@ export function createDemoBackend(): Backend {
 
   function statsOf(userId: string) {
     const first = plansOf(userId)[0]
-    return computeStats(rowsOf(userId), first?.baselineG ?? null, pragueToday())
+    const { doses, zeroDays } = dosesOf(userById(userId), planDaysOf(userId))
+    return {
+      ...computeStats(rowsOf(userId), first?.baselineG ?? null, pragueToday()),
+      ...computeGapStats(doses, zeroDays, new Date()),
+    }
   }
 
   function checkWindow(date: ISODate) {
@@ -672,7 +677,11 @@ export function createDemoBackend(): Backend {
       const viewer = me()
       const stats = statsOf(userId)
       const show = userId === viewer.id || userById(userId).shareGrams
-      return { ...stats, currentLimitG: show ? stats.currentLimitG : null }
+      return {
+        ...stats,
+        currentLimitG: show ? stats.currentLimitG : null,
+        lastDoseAt: userId === viewer.id ? stats.lastDoseAt : null,
+      }
     },
 
     async getLeaderboard() {
@@ -683,6 +692,7 @@ export function createDemoBackend(): Backend {
         return {
           ...stats,
           currentLimitG: u.id === viewer.id || u.shareGrams ? stats.currentLimitG : null,
+          lastDoseAt: u.id === viewer.id ? stats.lastDoseAt : null,
           userId: u.id,
           nickname: u.nickname,
         }

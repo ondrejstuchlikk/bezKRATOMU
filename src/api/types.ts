@@ -97,6 +97,14 @@ export interface UserStats {
   todayStatus: DayStatus | 'none'
   currentLimitG: number | null
   hasPlan: boolean
+  /** Latest dose that has already happened (ISO instant); only for yourself, null for others. */
+  lastDoseAt: string | null
+  /** Longest time between two doses in a row, in minutes (src/lib/gaps.ts). */
+  recordGapMin: number | null
+  /** The record is the gap still running since the latest dose. */
+  recordGapRunning: boolean
+  avgGap5dMin: number | null
+  avgGapAllMin: number | null
 }
 
 export interface LeaderboardRow extends UserStats {

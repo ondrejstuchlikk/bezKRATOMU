@@ -106,6 +106,11 @@ function mapStats(r: Row): UserStats {
     todayStatus: r.today_status as UserStats['todayStatus'],
     currentLimitG: num(r.current_limit_g),
     hasPlan: Boolean(r.has_plan),
+    lastDoseAt: (r.last_dose_at as string | null) ?? null,
+    recordGapMin: num(r.record_gap_min),
+    recordGapRunning: Boolean(r.record_gap_running),
+    avgGap5dMin: num(r.avg_gap_5d_min),
+    avgGapAllMin: num(r.avg_gap_all_min),
   }
 }
 

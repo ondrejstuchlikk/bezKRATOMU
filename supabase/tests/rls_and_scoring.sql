@@ -10,6 +10,14 @@ exception when others then
   raise notice 'ok  % -> %', p_label, sqlerrm;
 end $$;
 grant execute on function public.expect_error(text, text) to anon, authenticated;
+create function public.expect_eq(p_actual text, p_expected text, p_label text) returns void language plpgsql as $$
+begin
+  if p_actual is distinct from p_expected then
+    raise exception 'FAIL %: got %, expected %', p_label, p_actual, p_expected;
+  end if;
+  raise notice 'ok  %', p_label;
+end $$;
+grant execute on function public.expect_eq(text, text, text) to anon, authenticated;
 
 -- Sign-ups (as Supabase Auth would do)
 insert into auth.users (email, raw_user_meta_data) values ('petr-novak@kratom.local', '{"nickname":"Petr Novák"}') returning id as a \gset
@@ -38,6 +46,27 @@ select private.finalize_all();  -- idempotent
 select count(*) as final_rows from daily_results where user_id = :'b';
 select type, event_date - private.prague_today() as day_offset, payload from feed_events order by id;
 select count(*) as feed_events_with_grams from feed_events where payload::text ~ '_g"';
+-- ===== Time between doses (fixed dates; same numbers as src/lib/gaps.test.ts) =====
+-- 10-05 is not logged (breaks the gap across it), 10-07 and 10-09 are zero days.
+insert into auth.users (email, raw_user_meta_data) values ('dana@kratom.local', '{"nickname":"Dana"}') returning id as d \gset
+insert into doses (user_id, taken_at, grams, input_unit, input_amount)
+select :'d', t::timestamp at time zone 'Europe/Prague', 1, 'g', 1
+from unnest(array['2026-10-03 08:00', '2026-10-03 20:00', '2026-10-04 08:00', '2026-10-06 10:00',
+                  '2026-10-08 10:00', '2026-10-08 16:30', '2026-10-10 09:00']) t;
+insert into zero_days (user_id, date) values (:'d', '2026-10-07'), (:'d', '2026-10-09');
+select public.expect_eq(format('%s/%s/%s/%s', g.record_gap_min, g.record_running, g.avg_gap_5d_min, g.avg_gap_all_min),
+  expected, label)
+from (values
+  ('2026-10-12 12:00', '3060/t/2190/1700', 'gaps: running gap is the record'),
+  ('2026-10-10 10:00', '2880/f/1900/1428', 'gaps: short running gap ignored in averages'),
+  ('2026-10-14 12:00', '2880/f/2430/1428', 'gaps: unlogged days break the running gap'),
+  ('2026-10-03 07:00', '/f//', 'gaps: before the first dose')
+) v(at, expected, label)
+cross join lateral private.gap_stats(:'d', at::timestamp at time zone 'Europe/Prague') g;
+select public.expect_eq(
+  (select last_dose_at from private.gap_stats(:'d', '2026-10-09 12:00'::timestamp at time zone 'Europe/Prague'))::text,
+  ('2026-10-08 16:30'::timestamp at time zone 'Europe/Prague')::text, 'gaps: later doses ignored');
+
 \o fixture.json
 \pset format unaligned
 \pset tuples_only on
@@ -96,6 +125,10 @@ select body from comments;
 select date - (:'today')::date as o, status, points, limit_g, total_g, plan_pct, actual_pct from get_user_days(:'b', (:'today')::date - 3, (:'today')::date);
 \echo '--- leaderboard / summary'
 select nickname, total_points, met_pct, current_streak, best_streak, reduction_limit_pct, reduction_avg_pct, today_status, current_limit_g from get_leaderboard();
+\echo '--- time between doses: latest dose time only for yourself'
+select nickname, last_dose_at is not null as sees_last_dose, record_gap_min is not null as sees_record from get_leaderboard() order by nickname;
+select public.expect_eq((select (last_dose_at is null and record_gap_min > 0)::text from get_user_stats(:'d')), 'true', 'other user: record yes, last dose time no');
+select public.expect_eq((select (last_dose_at is not null)::text from get_user_stats(auth.uid())), 'true', 'own last dose time');
 select get_group_summary();
 \echo '--- group today: % of limit for everyone, grams only for A'
 select nickname, status, logged, pct_of_limit, total_g, limit_g from get_group_today() order by nickname;

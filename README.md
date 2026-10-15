@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0013`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0014`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -88,6 +88,11 @@ sends. Lock-screen texts never contain grams.
 - **Scoring**: computed only on the server. Today and yesterday are provisional (computed on the fly);
   an hourly pg_cron job finalizes older days and writes `daily_results` and feed events.
   `src/lib/scoring.ts` mirrors the rules for demo mode; `src/lib/parity.test.ts` checks both agree.
+- **Time between doses**: `private.gap_stats()` (mirrored by `src/lib/gaps.ts`) measures gaps between
+  doses in a row, night included, plus the gap still running since the latest dose. A gap only counts
+  if every day inside it was logged as a zero day (yesterday may still be open), so unlogged days don't
+  produce fake records. The record, the 5-day average and the all-time average are visible to the group;
+  the time of the latest dose only to its owner.
 - **Time zone**: all days are calendar days in `Europe/Prague` (DST-safe).
 
 ## Database tests
