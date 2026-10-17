@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backend, type DayResult, type Dose } from '../api'
 import { useMe } from '../auth/SessionProvider'
@@ -17,11 +17,17 @@ import {
   useUserStats,
 } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { addDays, formatLongDate, pragueTime, type ISODate } from '../lib/time'
+import { EDIT_WINDOW_DAYS } from '../lib/days'
+import { addDays, formatLongDate, formatWeekday, pragueTime, type ISODate } from '../lib/time'
 import { formatDuration, formatGrams, formatNumber, gramsToTeaspoons, round2 } from '../lib/units'
 
 function sumGrams(doses: Dose[]) {
   return round2(doses.reduce((s, d) => s + d.grams, 0))
+}
+
+/** The dose right before the first dose of `dayDoses` (all lists sorted by time). */
+function doseBefore(all: Dose[], dayDoses: Dose[]): Dose | undefined {
+  return dayDoses.length ? all[all.indexOf(dayDoses[0]) - 1] : undefined
 }
 
 /** Minutes since the latest dose that has already happened, or null when there is none. */
@@ -40,8 +46,10 @@ export function TodayPage() {
   const today = useToday()
   const yesterday = addDays(today, -1)
   const plan = useActivePlan()
-  const days = useUserDays(me.id, yesterday, today)
-  const doses = useMyDoses(yesterday, today)
+  const oldest = addDays(today, -EDIT_WINDOW_DAYS)
+  const days = useUserDays(me.id, oldest, today)
+  // One day more than editable, so the oldest day's first dose can show the gap before it.
+  const doses = useMyDoses(addDays(oldest, -1), today)
   const settings = useSettings()
   const stats = useUserStats(me.id)
   const group = useGroupSummary()
@@ -67,6 +75,7 @@ export function TodayPage() {
   const yesterdayRow = days.data.find((d) => d.date === yesterday)
   const todayDoses = doses.data.filter((d) => d.localDate === today)
   const yesterdayDoses = doses.data.filter((d) => d.localDate === yesterday)
+  const olderRows = days.data.filter((d) => d.date < yesterday)
   const lastDose = doses.data[doses.data.length - 1] ?? null
   // The stats know older doses; the dose list catches a dose logged ahead of time once its time comes.
   const sinceLastMin = minutesSinceLastDose(now, [stats.data?.lastDoseAt, ...doses.data.map((d) => d.takenAt)])
@@ -96,15 +105,29 @@ export function TodayPage() {
 
       <Card className="space-y-3">
         <h2 className="font-semibold">{cs.today.doses}</h2>
-        <DoseList doses={todayDoses} onEdit={(d) => setSheet({ dose: d, date: today })} />
+        <DoseList
+          doses={todayDoses}
+          previous={doseBefore(doses.data, todayDoses)}
+          onEdit={(d) => setSheet({ dose: d, date: today })}
+        />
       </Card>
 
       {yesterdayRow && (
         <YesterdayCard
           row={yesterdayRow}
           doses={yesterdayDoses}
+          previous={doseBefore(doses.data, yesterdayDoses)}
           onAdd={() => setSheet({ dose: null, date: yesterday })}
           onEdit={(d) => setSheet({ dose: d, date: yesterday })}
+        />
+      )}
+
+      {olderRows.length > 0 && (
+        <OlderDaysCard
+          rows={olderRows}
+          allDoses={doses.data}
+          onAdd={(date) => setSheet({ dose: null, date })}
+          onEdit={(d) => setSheet({ dose: d, date: d.localDate })}
         />
       )}
 
@@ -225,34 +248,54 @@ function TodayCard({
   )
 }
 
-function DoseList({ doses, onEdit }: { doses: Dose[]; onEdit: (d: Dose) => void }) {
+/** Doses of one day with the time between them. `previous` is the dose before the first one. */
+function DoseList({ doses, previous, onEdit }: { doses: Dose[]; previous?: Dose; onEdit: (d: Dose) => void }) {
   if (!doses.length) return <p className="text-sm text-muted">{cs.today.noDoses}</p>
   return (
-    <ul className="-mx-2 divide-y divide-line">
-      {doses.map((d) => (
-        <li key={d.id}>
-          <button
-            type="button"
-            onClick={() => onEdit(d)}
-            className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-bg"
-          >
-            <span className="w-12 shrink-0 font-semibold text-muted tabular-nums">{pragueTime(new Date(d.takenAt))}</span>
-            <span className="flex-1">
-              <span className="font-semibold">{formatGrams(d.grams)}</span>
-              {d.inputUnit === 'tsp' && (
-                <span className="ml-1.5 text-sm text-muted">({formatNumber(d.inputAmount)} lž.)</span>
-              )}
-              {d.note && <span className="block truncate text-sm text-muted">{d.note}</span>}
-            </span>
-            {d.feeling && (
-              <span className="text-2xl" aria-label={cs.feelings[d.feeling - 1].label}>
-                {cs.feelings[d.feeling - 1].emoji}
-              </span>
-            )}
-          </button>
-        </li>
+    <ul className="-mx-2">
+      {doses.map((d, i) => (
+        <Fragment key={d.id}>
+          {(i > 0 || previous) && <GapRow from={i > 0 ? doses[i - 1] : previous!} to={d} first={i === 0} />}
+          <DoseRow dose={d} onEdit={onEdit} />
+        </Fragment>
       ))}
     </ul>
+  )
+}
+
+function GapRow({ from, to, first }: { from: Dose; to: Dose; first: boolean }) {
+  const duration = formatDuration((new Date(to.takenAt).getTime() - new Date(from.takenAt).getTime()) / 60000)
+  return (
+    <li className="flex items-center gap-2 px-2 text-sm font-medium text-muted tabular-nums">
+      <span>{first ? cs.today.sincePrevious(duration) : duration}</span>
+      <span className="h-px flex-1 bg-line" />
+    </li>
+  )
+}
+
+function DoseRow({ dose: d, onEdit }: { dose: Dose; onEdit: (d: Dose) => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onEdit(d)}
+        className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-bg"
+      >
+        <span className="w-12 shrink-0 font-semibold text-muted tabular-nums">{pragueTime(new Date(d.takenAt))}</span>
+        <span className="flex-1">
+          <span className="font-semibold">{formatGrams(d.grams)}</span>
+          {d.inputUnit === 'tsp' && (
+            <span className="ml-1.5 text-sm text-muted">({formatNumber(d.inputAmount)} lž.)</span>
+          )}
+          {d.note && <span className="block truncate text-sm text-muted">{d.note}</span>}
+        </span>
+        {d.feeling && (
+          <span className="text-2xl" aria-label={cs.feelings[d.feeling - 1].label}>
+            {cs.feelings[d.feeling - 1].emoji}
+          </span>
+        )}
+      </button>
+    </li>
   )
 }
 
@@ -305,14 +348,63 @@ function ZeroDayControl({
   )
 }
 
-function YesterdayCard({
+/** Title, "9 g / 9,5 g · 4 dávky", status and points of a past day. */
+function DayHeader({ title, row, doseCount }: { title: string; row: DayResult; doseCount: number }) {
+  return (
+    <>
+      <div>
+        <h2 className="font-semibold first-letter:uppercase">{title}</h2>
+        <p className="text-sm text-muted">
+          {row.zeroDay ? cs.day.zeroDay : `${formatGrams(row.totalG ?? 0)} / ${formatGrams(row.limitG ?? 0)} · ${cs.today.yesterdayDoses(doseCount)}`}
+        </p>
+      </div>
+      <div className="flex flex-col items-end gap-1">
+        <StatusBadge status={row.status} provisional={!row.isFinal} />
+        <Points value={row.points} className="text-sm" />
+      </div>
+    </>
+  )
+}
+
+/** Dose list, "add a dose" and the zero-day switch of a past day. */
+function PastDayDoses({
   row,
   doses,
+  previous,
+  addLabel,
+  zeroLabel,
   onAdd,
   onEdit,
 }: {
   row: DayResult
   doses: Dose[]
+  previous?: Dose
+  addLabel: string
+  zeroLabel: string
+  onAdd: () => void
+  onEdit: (d: Dose) => void
+}) {
+  return (
+    <div className="space-y-3">
+      <DoseList doses={doses} previous={previous} onEdit={onEdit} />
+      <Button variant="secondary" className="w-full" onClick={onAdd}>
+        <PlusIcon className="size-5" /> {addLabel}
+      </Button>
+      <ZeroDayControl date={row.date} row={row} hasDoses={doses.length > 0} label={zeroLabel} marked={cs.day.zeroDay} />
+    </div>
+  )
+}
+
+function YesterdayCard({
+  row,
+  doses,
+  previous,
+  onAdd,
+  onEdit,
+}: {
+  row: DayResult
+  doses: Dose[]
+  previous?: Dose
   onAdd: () => void
   onEdit: (d: Dose) => void
 }) {
@@ -320,32 +412,81 @@ function YesterdayCard({
   return (
     <Card className="space-y-3">
       <button type="button" className="flex w-full items-center justify-between gap-2 text-left" onClick={() => setExpanded(!expanded)}>
-        <div>
-          <h2 className="font-semibold">{cs.today.yesterday}</h2>
-          <p className="text-sm text-muted">
-            {row.zeroDay ? cs.day.zeroDay : `${formatGrams(row.totalG ?? 0)} / ${formatGrams(row.limitG ?? 0)} · ${cs.today.yesterdayDoses(doses.length)}`}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <StatusBadge status={row.status} provisional />
-          <Points value={row.points} className="text-sm" />
-        </div>
+        <DayHeader title={cs.today.yesterday} row={row} doseCount={doses.length} />
       </button>
       {!row.logged && <p className="rounded-2xl bg-warn/12 p-3 text-sm">{cs.today.yesterdayMissing}</p>}
       {expanded && (
-        <div className="space-y-3">
-          <DoseList doses={doses} onEdit={onEdit} />
-          <Button variant="secondary" className="w-full" onClick={onAdd}>
-            <PlusIcon className="size-5" /> {cs.today.yesterdayAdd}
-          </Button>
-          <ZeroDayControl
-            date={row.date}
+        <PastDayDoses
+          row={row}
+          doses={doses}
+          previous={previous}
+          addLabel={cs.today.yesterdayAdd}
+          zeroLabel={cs.today.yesterdayZero}
+          onAdd={onAdd}
+          onEdit={onEdit}
+        />
+      )}
+    </Card>
+  )
+}
+
+/** Days 2–7 back: pick one with the date chips, then see and edit its doses. */
+function OlderDaysCard({
+  rows,
+  allDoses,
+  onAdd,
+  onEdit,
+}: {
+  rows: DayResult[]
+  allDoses: Dose[]
+  onAdd: (date: ISODate) => void
+  onEdit: (d: Dose) => void
+}) {
+  const [selected, setSelected] = useState<ISODate | null>(null)
+  const row = rows.find((r) => r.date === selected)
+  const doses = allDoses.filter((d) => d.localDate === selected)
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-semibold">{cs.today.olderDays}</h2>
+      <div className="grid grid-cols-6 gap-1.5">
+        {rows.map((r) => (
+          <button
+            key={r.date}
+            type="button"
+            aria-pressed={r.date === selected}
+            aria-label={`${formatLongDate(r.date)}: ${cs.status[r.status]}`}
+            onClick={() => setSelected(r.date === selected ? null : r.date)}
+            className={cx(
+              'flex min-h-16 flex-col items-center justify-center rounded-2xl border transition',
+              r.date === selected ? 'border-accent bg-accent/12' : 'border-line bg-bg',
+            )}
+          >
+            <span className="text-xs text-muted">{formatWeekday(r.date)}</span>
+            <span className="font-semibold tabular-nums">{Number(r.date.slice(8))}.</span>
+            <span className="text-xs" aria-hidden>
+              {cs.statusIcon[r.status]}
+            </span>
+          </button>
+        ))}
+      </div>
+      {row ? (
+        <>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <DayHeader title={formatLongDate(row.date)} row={row} doseCount={doses.length} />
+          </div>
+          {!row.logged && <p className="rounded-2xl bg-warn/12 p-3 text-sm">{cs.today.dayMissing}</p>}
+          <PastDayDoses
             row={row}
-            hasDoses={doses.length > 0}
-            label={cs.today.yesterdayZero}
-            marked={cs.day.zeroDay}
+            doses={doses}
+            previous={doseBefore(allDoses, doses)}
+            addLabel={cs.today.dayAdd}
+            zeroLabel={cs.today.dayZero}
+            onAdd={() => onAdd(row.date)}
+            onEdit={onEdit}
           />
-        </div>
+        </>
+      ) : (
+        <p className="text-sm text-muted">{cs.today.olderDaysHint}</p>
       )}
     </Card>
   )

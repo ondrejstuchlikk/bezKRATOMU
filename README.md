@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0014`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0015`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -73,7 +73,7 @@ sends. Lock-screen texts never contain grams.
 ## How it works
 
 - **Security**: every table has Row Level Security. Users can only write their own doses (and only for
-  today and yesterday, Prague time), never scores. Other users' doses are not readable at all — the
+  today and the 7 days before it, Prague time), never scores. Other users' doses are not readable at all — the
   app gets aggregated, privacy-filtered data from `security definer` functions, and exact grams only
   when the person enabled "Sdílet přesné gramy".
 - **Plans**: limits move in half-gram steps (0.5, 1, 1.5, …), so small doses taper gently.
@@ -86,7 +86,9 @@ sends. Lock-screen texts never contain grams.
 - **Teaspoons**: users who set their spoon size in Nastavení also see each limit in teaspoons
   (rounded down to 0.1, so following it never exceeds the limit).
 - **Scoring**: computed only on the server. Today and yesterday are provisional (computed on the fly);
-  an hourly pg_cron job finalizes older days and writes `daily_results` and feed events.
+  an hourly pg_cron job finalizes older days and writes `daily_results` and feed events. Older days can
+  still be edited for a week: a trigger then recomputes that user's final days (and automatic feed
+  posts) from the edited day on (`private.refinalize_from`).
   `src/lib/scoring.ts` mirrors the rules for demo mode; `src/lib/parity.test.ts` checks both agree.
 - **Time between doses**: `private.gap_stats()` (mirrored by `src/lib/gaps.ts`) measures gaps between
   doses in a row, night included, plus the gap still running since the latest dose. A gap only counts

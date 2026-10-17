@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { backend, type Dose } from '../api'
 import { useRefreshAfterChange, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { addDays, pragueLocalToInstant, pragueTime, pragueToday, type ISODate } from '../lib/time'
+import { EDIT_WINDOW_DAYS } from '../lib/days'
+import { addDays, formatWeekdayDate, pragueLocalToInstant, pragueTime, pragueToday, type ISODate } from '../lib/time'
 import { formatGrams, MAX_DOSE_G, toGrams, type InputUnit } from '../lib/units'
 import { NumberStepper } from './NumberStepper'
 import { Button, cx, errorMessage, inputClass, Segmented } from './ui'
@@ -34,7 +35,10 @@ export function DoseSheet({ open, onClose, dose, defaultDate, teaspoonGrams, las
 
 function DoseForm({ onClose, dose, defaultDate, teaspoonGrams, lastDose }: Omit<DoseSheetProps, 'open'>) {
   const today = useToday()
-  const yesterday = addDays(today, -1)
+  const dayOptions = Array.from({ length: EDIT_WINDOW_DAYS + 1 }, (_, i) => {
+    const d = addDays(today, -i)
+    return { value: d, label: i === 0 ? cs.dose.todayLabel : i === 1 ? cs.dose.yesterdayLabel : formatWeekdayDate(d) }
+  })
   const refresh = useRefreshAfterChange()
 
   const template = dose ?? lastDose
@@ -141,17 +145,16 @@ function DoseForm({ onClose, dose, defaultDate, teaspoonGrams, lastDose }: Omit<
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <label className="space-y-1.5">
               <span className="text-sm font-semibold">{cs.dose.day}</span>
-              <Segmented
-                value={date}
-                onChange={setDate}
-                options={[
-                  { value: yesterday, label: cs.dose.yesterdayLabel },
-                  { value: today, label: cs.dose.todayLabel },
-                ]}
-              />
-            </div>
+              <select className={inputClass} value={date} onChange={(e) => setDate(e.target.value)}>
+                {dayOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="space-y-1.5">
               <span className="text-sm font-semibold">{cs.dose.time}</span>
               <input type="time" className={inputClass} value={time} onChange={(e) => setTime(e.target.value || '00:00')} />

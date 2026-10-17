@@ -3,7 +3,7 @@
 // are generated deterministically so every screen has something to show.
 // Scoring uses the same rules as the server (src/lib/days.ts mirrors SQL).
 
-import { computeDays, computeStats, deriveDayEvents, type DayActivity, type DayRow } from '../lib/days'
+import { computeDays, computeStats, deriveDayEvents, EDIT_WINDOW_DAYS, type DayActivity, type DayRow } from '../lib/days'
 import { computeGapStats } from '../lib/gaps'
 import { slugifyNickname } from '../lib/nickname'
 import { buildPlanDays, customPlanParams, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
@@ -388,7 +388,7 @@ export function createDemoBackend(): Backend {
 
   function checkWindow(date: ISODate) {
     const today = pragueToday()
-    if (date < addDays(today, -1) || date > today) throw new AppError('edit_window_closed')
+    if (date < addDays(today, -EDIT_WINDOW_DAYS) || date > today) throw new AppError('edit_window_closed')
   }
 
   function activePlan(userId: string) {

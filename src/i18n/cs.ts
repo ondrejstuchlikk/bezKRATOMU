@@ -45,7 +45,7 @@ export const cs = {
     invalid_login: 'Přezdívka nebo PIN nesedí. Zkus to znovu.',
     rate_limited: 'Příliš mnoho pokusů. Počkej chvilku a zkus to znovu.',
     network: 'Nepodařilo se spojit se serverem. Zkontroluj připojení.',
-    edit_window_closed: 'Upravovat jde jen dnešek a včerejšek.',
+    edit_window_closed: 'Upravovat jde jen dnešek a posledních 7 dní.',
     doses_exist: 'Na tento den už máš zapsanou dávku.',
     already_paused: 'Plán už je pozastavený.',
     plan_finished: 'Plán už je u konce, není co pozastavit.',
@@ -216,6 +216,13 @@ export const cs = {
     metMessage: 'Krásná práce, drž se! 🌿',
     editPlan: 'Upravit plán ›',
     sinceLastDose: 'Od poslední dávky',
+    /** Above the first dose of a day: time since the dose before it (usually the previous evening). */
+    sincePrevious: (duration: string) => `${duration} od předchozí dávky`,
+    olderDays: 'Starší dny',
+    olderDaysHint: 'Vyber den, který chceš zkontrolovat nebo doplnit.',
+    dayMissing: 'Tenhle den není zapsaný. Doplň ho, dokud to jde.',
+    dayZero: 'Ten den jsem si nic nevzal(a)',
+    dayAdd: 'Doplnit dávku',
   },
 
   dose: {

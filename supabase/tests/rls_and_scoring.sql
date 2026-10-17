@@ -94,7 +94,7 @@ select string_agg(limit_g::text, ',' order by date) as a_half_limits from plan_d
 
 insert into doses (taken_at, grams, input_unit, input_amount, feeling, note) values (now(), 2.5, 'tsp', 1, 4, 'ok');
 insert into doses (taken_at, grams, input_unit, input_amount) values (now() - interval '1 day', 1, 'g', 1);
-select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now() - interval '3 days', 1, 'g', 1)$$, 'dose older than yesterday');
+select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values ((current_date - 8 + time '12:00') at time zone 'Europe/Prague', 1, 'g', 1)$$, 'dose 8 days back');
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now() + interval '1 day', 1, 'g', 1)$$, 'dose tomorrow');
 insert into doses (taken_at, grams, input_unit, input_amount, note)
   values (((now() at time zone 'Europe/Prague')::date + time '23:59') at time zone 'Europe/Prague', 1, 'g', 1, 'later today');
@@ -102,7 +102,7 @@ delete from doses where note = 'later today';
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now(), 0, 'g', 0)$$, 'zero grams');
 select public.expect_error($$insert into doses (taken_at, grams, input_unit, input_amount) values (now(), 500, 'g', 500)$$, 'too many grams');
 select public.expect_error($$insert into doses (user_id, taken_at, grams, input_unit, input_amount) values ('$$ || :'b' || $$', now(), 1, 'g', 1)$$, 'insert dose for someone else');
-select public.expect_error($$update doses set taken_at = now() - interval '5 days' where grams = 2.5$$, 'move dose out of window');
+select public.expect_error($$update doses set taken_at = now() - interval '9 days' where grams = 2.5$$, 'move dose out of window');
 select public.expect_error($$insert into zero_days (date) values ('$$ || :'today' || $$')$$, 'zero day while doses exist');
 select count(*) as visible_doses, count(distinct user_id) as owners from doses;
 with u as (update doses set grams = 99 where user_id = :'b' returning 1) select count(*) as updated_other_users_doses from u;
@@ -187,6 +187,46 @@ select count(*) as a_plan_days_after_resume from plan_days;
 select set_config('request.jwt.claim.sub', :'b', false) \g /dev/null
 with d as (delete from comments returning 1) select count(*) as b_deleted_comment_on_own_day from d;
 select date - (:'today')::date as o, limit_g, total_g from get_user_days(:'a', (:'today')::date - 1, (:'today')::date);
+
+-- ===== Editing final days (older than yesterday) recomputes the results =====
+reset role;
+create function public.final_differs_from_fresh(p_user uuid) returns bigint language sql as $$
+  with f as (select date, status, points, streak_after, missed_run, total_g from public.daily_results where user_id = p_user),
+       c as (select date, status, points, streak_after, missed_run, total_g from private.compute_days(
+               p_user, (select min(date) from public.plan_days where user_id = p_user), private.prague_today() - 2, 0, 0))
+  select (select count(*) from (table f except table c) x) + (select count(*) from (table c except table f) y)
+$$;
+create function public.b_events(p_user uuid) returns text language sql as $$
+  select coalesce(string_agg(type || '@' || (event_date - private.prague_today()), ',' order by type), '')
+  from public.feed_events where user_id = p_user and type <> 'plan_started'
+$$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
+select public.expect_error($$insert into zero_days (date) values ('$$ || ((:'today')::date - 8) || $$')$$, 'zero day 8 days back');
+select set_config('request.jwt.claim.sub', :'b', false) \g /dev/null
+update doses set grams = 1, input_amount = 1 where local_date = (:'today')::date - 6;
+reset role;
+select public.expect_eq((select status || '/' || points from daily_results where user_id = :'b' and date = (:'today')::date - 6), 'met/14', 'edited final day is met now');
+select public.expect_eq(public.final_differs_from_fresh(:'b')::text, '0', 'final rows recomputed after edit');
+set role authenticated;
+delete from zero_days where date = (:'today')::date - 7;
+reset role;
+select public.expect_eq(public.b_events(:'b'), 'half_baseline@-6', 'feed follows a removed zero day');
+select public.expect_eq(public.final_differs_from_fresh(:'b')::text, '0', 'final rows recomputed after removing zero day');
+set role authenticated;
+insert into zero_days (date) values ((:'today')::date - 7);
+reset role;
+select public.expect_eq(public.b_events(:'b'), 'first_zero_day@-7,half_baseline@-7', 'feed restored with the zero day');
+set role authenticated;
+insert into doses (taken_at, grams, input_unit, input_amount)
+  values (((:'today')::date - 7 + time '12:00') at time zone 'Europe/Prague', 1, 'g', 1);
+reset role;
+select public.expect_eq(public.b_events(:'b'), 'half_baseline@-7', 'dose 7 days back replaces the zero day');
+select public.expect_eq(public.final_differs_from_fresh(:'b')::text, '0', 'final rows recomputed after adding a dose');
+select public.expect_eq((select count(*)::text from daily_results where user_id = :'b'), '11', 'still 11 final days');
+delete from auth.users where id = :'b';
+select public.expect_eq((select count(*)::text from daily_results where user_id = :'b'), '0', 'deleting a user still works');
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
 
 -- ===== Anonymous =====
 set role anon;

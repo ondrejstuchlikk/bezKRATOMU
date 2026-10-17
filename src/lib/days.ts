@@ -5,6 +5,9 @@ import { limitOn, type PlanDay } from './plan'
 import { scoreDay, type DayStatus, type ScoreState } from './scoring'
 import { addDays, type ISODate } from './time'
 
+/** Doses and zero days can be changed for today and this many days before it (RLS in 0015). */
+export const EDIT_WINDOW_DAYS = 7
+
 export interface DayRow {
   date: ISODate
   planId: string
@@ -18,7 +21,7 @@ export interface DayRow {
   points: number
   streakAfter: number
   missedRun: number
-  /** Days older than yesterday can no longer be edited, so their result is final. */
+  /** Days older than yesterday are final; the server recomputes them if one is edited later. */
   isFinal: boolean
 }
 

@@ -65,7 +65,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 ## Rules that must not break
 
 - **Security lives in the database.** RLS on every table. Users write only their own doses, only for
-  today/yesterday (Prague) — enforced by RLS policies in `0002_security.sql`. Scores are computed only on
+  today and the 7 days before (Prague) — enforced by RLS policies in `0015_edit_last_7_days.sql`
+  (`EDIT_WINDOW_DAYS` in `src/lib/days.ts` for the UI/demo). Scores are computed only on
   the server (`private.compute_days` / `user_days`); clients can't write them.
 - **Privacy of grams.** Other users' doses are never readable directly. Other users' data comes from
   `security definer` RPCs (`get_user_days`, `get_user_stats`, `get_leaderboard`, `get_group_summary`,
@@ -77,8 +78,12 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - **Logic exists twice (SQL + TS).** Changing plan or scoring rules means changing the SQL *and*
   `src/lib/*.ts`, then running both test suites. The demo backend must mirror the real backend's rules and
   privacy filtering.
-- **Doses may be at a later time today** (since 0012); RLS still blocks tomorrow and anything before
-  yesterday.
+- **Doses may be at a later time today** (since 0012); RLS still blocks tomorrow and anything older
+  than 7 days.
+- **Days still finalize 2 days later** (pg_cron → `daily_results` + feed events). Editing a dose or
+  zero day of an already final day fires a trigger → `private.refinalize_from(user, date)` deletes that
+  user's `daily_results` and automatic feed events from that date on and re-runs `finalize_user`
+  (since 0015). If you change `finalize_user`, keep that working (SQL tests cover it).
 
 ## Database migrations — how they work here
 
@@ -92,7 +97,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0014 applied (as of 2026-10-15). `0005_cron.sql` and `0010_push_cron.sql` need
+- Live DB has 0001–0015 applied (as of 2026-10-17). `0005_cron.sql` and `0010_push_cron.sql` need
   pg_cron / Vault and are skipped by the local test runner.
 
 ## Commands and checks
@@ -100,7 +105,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 ```bash
 npm run dev          # dev server (uses .env.local → REAL Supabase if present!)
 npm run build        # tsc -b + vite build — must pass
-npm run lint         # oxlint; 3 pre-existing "only-export-components" warnings are expected
+npm run lint         # oxlint; 5 pre-existing "only-export-components" warnings are expected
 npm test             # vitest unit tests
 ```
 

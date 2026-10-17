@@ -108,6 +108,7 @@ function utcDate(date: ISODate): Date {
 
 const shortFormat = new Intl.DateTimeFormat('cs-CZ', { day: 'numeric', month: 'numeric', timeZone: 'UTC' })
 const weekdayFormat = new Intl.DateTimeFormat('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' })
+const weekdayOnlyFormat = new Intl.DateTimeFormat('cs-CZ', { weekday: 'short', timeZone: 'UTC' })
 const longFormat = new Intl.DateTimeFormat('cs-CZ', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
 
 /** "12. 10." */
@@ -118,6 +119,11 @@ export function formatShortDate(date: ISODate): string {
 /** "po 12. 10." */
 export function formatWeekdayDate(date: ISODate): string {
   return weekdayFormat.format(utcDate(date))
+}
+
+/** "po" */
+export function formatWeekday(date: ISODate): string {
+  return weekdayOnlyFormat.format(utcDate(date))
 }
 
 /** "pondělí 12. října" */

@@ -3,6 +3,19 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-10-17
+
+- **Doses can be changed for the last 7 days**, not only today and yesterday: add, edit or delete a
+  dose, or mark a day as "nic jsem si nevzal(a)". On *Dnes*, the new *Starší dny* card shows the
+  days before yesterday as date chips with their status; tap one to see and edit its doses. The dose
+  form now has a day dropdown (Dnes, Včera, čt 15. 10., …) instead of the Dnes/Včera switch.
+  Points still become final after 2 days. If you change an older day, its points, your streak and
+  the automatic group feed posts (streaks, milestones) are recalculated from that day on.
+- **Time between doses in the dose lists.** Between two doses you now see how long the gap was
+  (e.g. "3 h 15 min"), and above the first dose of a day how long it was since the dose before it
+  ("14 h 40 min od předchozí dávky"). Works for today, yesterday and the older days. Only you see it.
+  Migration: `0015_edit_last_7_days.sql`.
+
 ## 2026-10-15
 
 - **Time between doses.** The today card shows how long it has been since your last dose
