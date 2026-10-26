@@ -36,8 +36,6 @@ export const cs = {
     you: 'ty',
     grams: 'g',
     days,
-    points: (n: number) => `${n > 0 ? '+' : ''}${n} b.`,
-    pointsLong: (n: number) => `${n} ${plural(n, 'bod', 'body', 'bodů')}`,
   },
 
   errors: {
@@ -55,7 +53,6 @@ export const cs = {
   nav: {
     today: 'Dnes',
     chart: 'Graf',
-    leaderboard: 'Žebříček',
     group: 'Skupina',
     settings: 'Nastavení',
   },
@@ -121,7 +118,7 @@ export const cs = {
     },
     shareNo: {
       title: 'Ne, jen výsledky',
-      desc: 'Ostatní uvidí jen body, jestli jsi den splnil(a), série a procenta z limitu – nikdy gramy.',
+      desc: 'Ostatní uvidí jen to, jestli jsi den splnil(a), série a procenta z limitu – nikdy gramy.',
     },
     shareLater: 'Můžeš to kdykoli změnit v Nastavení.',
     shareRequired: 'Vyber, jestli chceš sdílet gramy.',
@@ -204,9 +201,7 @@ export const cs = {
     yesterdayZero: 'Včera jsem si nic nevzal(a)',
     yesterdayAdd: 'Doplnit včerejší dávku',
     yesterdayDoses: (n: number) => `${n} ${plural(n, 'dávka', 'dávky', 'dávek')}`,
-    pointsToday: 'Body za dnešek',
     streak: 'Série',
-    total: 'Celkem',
     encouragement: [
       'Nevadí. Jeden těžší den nic nemaže – jsi pořád na cestě. 💚',
       'Díky, že to poctivě zapisuješ. I to je kus práce.',
@@ -261,14 +256,11 @@ export const cs = {
     timeOfDayHint: 'Počet dávek podle hodiny',
     feelings: 'Pocity a dávka',
     feelingAvg: 'Průměrný pocit',
-    points: 'Body v čase',
-    cumulative: 'Součet bodů',
     noData: 'Zatím málo dat.',
     pctNote: (name: string) => `V % původní dávky – ${name} nesdílí přesné gramy.`,
   },
 
   stats: {
-    points: 'Body',
     metDays: 'Splněné dny',
     streak: 'Aktuální série',
     bestStreak: 'Nejdelší série',
@@ -283,10 +275,10 @@ export const cs = {
     gapHint: 'včetně noci',
   },
 
-  leaderboard: {
-    title: 'Žebříček',
+  group: {
+    title: 'Skupina',
     tabs: {
-      points: 'Body',
+      today: 'Dnes',
       streak: 'Aktuální série',
       met: 'Splněné dny (%)',
       reduction: 'Snížení (%)',
@@ -298,10 +290,6 @@ export const cs = {
     lastDays: 'Posledních 5 dní:',
     legend: { met: 'pod limitem', over: 'nad limitem', none: 'bez záznamu' },
     dayTitle: (date: string, status: string) => `${date}: ${status}`,
-  },
-
-  group: {
-    title: 'Skupina',
     todaySummary: (met: number, of: number, pending: number) =>
       `Dnes zatím splnilo ${met} z ${of}${pending ? ` · nezapsáno ${pending}` : ''}`,
     yesterdaySummary: (met: number, of: number) => `Včera splnilo ${met} z ${of}`,
@@ -356,7 +344,7 @@ export const cs = {
     priceHint: 'V Kč. Slouží jen k odhadu ušetřených peněz.',
     pricePlaceholder: 'např. 4',
     share: 'Sdílet přesné gramy',
-    shareHint: 'Ostatní uvidí tvoje gramy. Když je vypnuto, vidí jen procenta, body a stav dne.',
+    shareHint: 'Ostatní uvidí tvoje gramy. Když je vypnuto, vidí jen procenta a stav dne.',
     theme: 'Vzhled',
     themes: { system: 'Systém', light: 'Světlý', dark: 'Tmavý' },
     plan: 'Můj plán',

@@ -1,7 +1,7 @@
 # bezKRATOMU
 
 A mobile-first web app (Czech UI) that helps a small group of friends taper off kratom together:
-a day-by-day plan in whole grams, dose logging, points and streaks, charts, a leaderboard, and
+a day-by-day plan in half grams, dose logging, streaks, charts, a group page with rankings, and
 reactions/comments for motivation.
 
 **Live:** https://ondrejstuchlikk.github.io/bezKRATOMU/
@@ -90,6 +90,12 @@ sends. Lock-screen texts never contain grams.
   still be edited for a week: a trigger then recomputes that user's final days (and automatic feed
   posts) from the edited day on (`private.refinalize_from`).
   `src/lib/scoring.ts` mirrors the rules for demo mode; `src/lib/parity.test.ts` checks both agree.
+  The scoring also produces points, but since 2026-10-26 the app no longer shows them anywhere —
+  they're only used internally (the database still computes and returns them).
+- **Skupina page**: tabs at the top — *Dnes* (today's group summary, the group's longest time without
+  a dose, everyone's intake as % of their limit) and rankings (*Aktuální série*, the default;
+  *Splněné dny*, *Snížení*, *Nejdelší bez dávky*, *Odstup dávek*). The *Aktivita* feed sits below
+  every tab. The old `#/zebricek` link redirects here.
 - **Time between doses**: `private.gap_stats()` (mirrored by `src/lib/gaps.ts`) measures gaps between
   doses in a row, night included, plus the gap still running since the latest dose. A gap only counts
   if every day inside it was logged as a zero day (yesterday may still be open), so unlogged days don't

@@ -3,6 +3,19 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-10-26
+
+- **Žebříček and Skupina are now one page: *Skupina*.** At the top there's a row of tabs:
+  *Dnes* (what the Skupina page used to show — how the group is doing today, the group's longest time
+  without a dose, and everyone's intake as % of their limit), then the rankings *Aktuální série*
+  (opens by default), *Splněné dny (%)*, *Snížení (%)*, *Nejdelší bez dávky* and *Odstup dávek (5 dní)*.
+  The *Aktivita* feed is at the bottom under every tab. The bottom menu now has four items:
+  Dnes, Graf, Skupina, Nastavení. Old links to the Žebříček page open Skupina.
+- **Points are gone from the app.** No more points on *Dnes*, in day lists, on the day detail, in
+  the stats, in the *Body* ranking or in the *Body v čase* chart. On *Dnes*, the "Celkem … bodů" tile
+  now shows your longest streak (*Nejdelší série*). Days are still marked as met/over, and streaks
+  work as before. No migration needed.
+
 ## 2026-10-17
 
 - **Doses can be changed for the last 7 days**, not only today and yesterday: add, edit or delete a

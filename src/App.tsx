@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppError } from './api'
 import { SessionProvider } from './auth/SessionProvider'
 import { AppShell, GuestOnly, RequireAuth, RequirePlan, RequireSafetyAck } from './components/layout'
 import { Loading } from './components/ui'
 import { DayPage } from './pages/DayPage'
 import { GroupPage } from './pages/GroupPage'
-import { LeaderboardPage } from './pages/LeaderboardPage'
 import { LoginPage, RegisterPage } from './pages/AuthPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SafetyPage, WelcomePage } from './pages/SafetyPages'
@@ -56,7 +55,7 @@ export function App() {
                       }
                     />
                     <Route path="/graf" element={<ChartsPage />} />
-                    <Route path="/zebricek" element={<LeaderboardPage />} />
+                    <Route path="/zebricek" element={<Navigate to="/skupina" replace />} />
                     <Route path="/skupina" element={<GroupPage />} />
                     <Route path="/nastaveni" element={<SettingsPage />} />
                     <Route path="/plan" element={<PlanPage />} />

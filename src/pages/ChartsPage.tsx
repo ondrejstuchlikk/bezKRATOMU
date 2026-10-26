@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DayResult } from '../api'
 import { useMe } from '../auth/SessionProvider'
-import { FeelingsChart, PlanVsActualChart, PointsChart, TimeOfDayChart } from '../components/charts'
+import { FeelingsChart, PlanVsActualChart, TimeOfDayChart } from '../components/charts'
 import { StatsGrid } from '../components/StatsGrid'
 import { ButtonLink, Card, ErrorState, Loading, PageHeader, Segmented } from '../components/ui'
 import { useActivePlan, useMyDoses, useSettings, useToday, useUserDays, useUserStats } from '../hooks/queries'
@@ -86,11 +86,6 @@ export default function ChartsPage() {
       <Card className="space-y-2 px-3">
         <h2 className="px-2 font-semibold">{cs.chart.feelings}</h2>
         <FeelingsChart days={days.data} doses={doses.data} unit="g" />
-      </Card>
-
-      <Card className="space-y-2 px-3">
-        <h2 className="px-2 font-semibold">{cs.chart.points}</h2>
-        <PointsChart days={allDays.data ?? days.data} />
       </Card>
     </div>
   )

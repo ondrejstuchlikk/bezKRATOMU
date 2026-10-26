@@ -26,13 +26,6 @@ export const ChartIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-export const TrophyIcon = (p: SVGProps<SVGSVGElement>) => (
-  <svg {...base} {...p}>
-    <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" />
-    <path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />
-  </svg>
-)
-
 export const GroupIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <circle cx="9" cy="8" r="3.2" />

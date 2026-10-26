@@ -31,7 +31,7 @@ Do this in the same commit as the change itself, without being asked:
 ## What the app is
 
 Mobile-first PWA for a small group of friends tapering off kratom: day-by-day plan with a gram limit per
-day, dose logging, server-side points/streaks, charts, leaderboard, group page, reactions/comments,
+day, dose logging, server-side scoring/streaks, charts, group page with rankings, reactions/comments,
 web push reminders. Live: https://ondrejstuchlikk.github.io/bezKRATOMU/ (Supabase project ref
 `yhusaoowjzmrdhbbgglw`, Frankfurt, Free plan).
 
@@ -48,7 +48,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `src/api/demoBackend.ts` | Full in-browser backend used when no Supabase env vars (six fake friends, localStorage) |
 | `src/api/index.ts` | Picks the backend: Supabase if `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set, else demo |
 | `src/hooks/queries.ts` | TanStack Query hooks + keys; `useRefreshAfterChange()` invalidates by key prefix (`'group'` also covers `['group','today']`) |
-| `src/pages/*` | One file per screen. Tabs: Dnes (`TodayPage`), Graf, Žebříček, Skupina (`GroupPage`), Nastavení |
+| `src/pages/*` | One file per screen. Tabs: Dnes (`TodayPage`), Graf, Skupina (`GroupPage`: *Dnes* tab + ranking tabs, formerly a separate Žebříček page), Nastavení |
 | `src/components/DoseSheet.tsx` | Add/edit dose bottom sheet |
 | `src/components/ui.tsx` | `Card`, `Button`, `Segmented`, `cx`, `inputClass`, `Loading`, `ErrorState`, … |
 | `src/i18n/cs.ts` | **All** Czech UI strings. Never hard-code Czech text in components |
@@ -149,6 +149,9 @@ Marek, Bára — all PIN `123456`.
 
 ## Open items / ideas
 
+- **Points are hidden in the UI** (since 2026-10-26, user's decision). SQL/TS still compute `points` /
+  `totalPoints` and the types still carry them (scoring parity tests use them) — just don't display them.
+  Removing them from the DB entirely was deliberately not done.
 - Spec phase 9 (security review write-up, v2 ideas) was never finished.
 - Help contacts in `src/config/helpContacts.ts` still need the user's verification.
 - No PIN reset, account deletion UI or data export yet.

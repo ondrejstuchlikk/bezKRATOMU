@@ -4,7 +4,7 @@ import { backend } from '../api'
 import { useSession } from '../auth/SessionProvider'
 import { useActivePlan, useOnline } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { ChartIcon, GroupIcon, SettingsIcon, TodayIcon, TrophyIcon } from './icons'
+import { ChartIcon, GroupIcon, SettingsIcon, TodayIcon } from './icons'
 import { cx, ErrorState, Loading } from './ui'
 
 const ACK_KEY = 'safetyAck'
@@ -44,7 +44,6 @@ export function Banners() {
 const NAV = [
   { to: '/', label: cs.nav.today, Icon: TodayIcon, end: true },
   { to: '/graf', label: cs.nav.chart, Icon: ChartIcon, end: false },
-  { to: '/zebricek', label: cs.nav.leaderboard, Icon: TrophyIcon, end: false },
   { to: '/skupina', label: cs.nav.group, Icon: GroupIcon, end: false },
   { to: '/nastaveni', label: cs.nav.settings, Icon: SettingsIcon, end: false },
 ]

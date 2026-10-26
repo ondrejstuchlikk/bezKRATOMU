@@ -156,14 +156,6 @@ export function StatusBadge({ status, provisional }: { status: DayStatus | 'none
   )
 }
 
-export function Points({ value, className }: { value: number; className?: string }) {
-  return (
-    <span className={cx('font-semibold tabular-nums', value > 0 ? 'text-accent' : value < 0 ? 'text-over' : 'text-muted', className)}>
-      {cs.common.points(value)}
-    </span>
-  )
-}
-
 export function StatTile({
   label,
   value,

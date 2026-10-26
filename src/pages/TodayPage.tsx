@@ -4,7 +4,7 @@ import { backend, type DayResult, type Dose } from '../api'
 import { useMe } from '../auth/SessionProvider'
 import { DoseSheet } from '../components/DoseSheet'
 import { PlusIcon } from '../components/icons'
-import { Button, Card, cx, ErrorState, errorMessage, Loading, Points, StatusBadge } from '../components/ui'
+import { Button, Card, cx, ErrorState, errorMessage, Loading, StatusBadge } from '../components/ui'
 import {
   useActivePlan,
   useGroupSummary,
@@ -138,8 +138,8 @@ export function TodayPage() {
             <div className="font-display text-2xl font-semibold">🔥 {cs.common.days(stats.data.currentStreak)}</div>
           </Card>
           <Card className="p-4">
-            <div className="text-xs font-medium tracking-wide text-muted uppercase">{cs.today.total}</div>
-            <div className="font-display text-2xl font-semibold tabular-nums">{cs.common.pointsLong(stats.data.totalPoints)}</div>
+            <div className="text-xs font-medium tracking-wide text-muted uppercase">{cs.stats.bestStreak}</div>
+            <div className="font-display text-2xl font-semibold">{cs.common.days(stats.data.bestStreak)}</div>
           </Card>
         </div>
       )}
@@ -201,10 +201,7 @@ function TodayCard({
             <div className="mt-1 font-semibold text-muted tabular-nums">{cs.dose.tspApprox(gramsToTeaspoons(limit, teaspoonGrams))}</div>
           )}
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <StatusBadge status={row.status} provisional={row.status !== 'pending'} />
-          {row.status !== 'pending' && <Points value={row.points} className="text-sm" />}
-        </div>
+        <StatusBadge status={row.status} provisional={row.status !== 'pending'} />
       </div>
 
       <div
@@ -348,7 +345,7 @@ function ZeroDayControl({
   )
 }
 
-/** Title, "9 g / 9,5 g · 4 dávky", status and points of a past day. */
+/** Title, "9 g / 9,5 g · 4 dávky" and status of a past day. */
 function DayHeader({ title, row, doseCount }: { title: string; row: DayResult; doseCount: number }) {
   return (
     <>
@@ -358,10 +355,7 @@ function DayHeader({ title, row, doseCount }: { title: string; row: DayResult; d
           {row.zeroDay ? cs.day.zeroDay : `${formatGrams(row.totalG ?? 0)} / ${formatGrams(row.limitG ?? 0)} · ${cs.today.yesterdayDoses(doseCount)}`}
         </p>
       </div>
-      <div className="flex flex-col items-end gap-1">
-        <StatusBadge status={row.status} provisional={!row.isFinal} />
-        <Points value={row.points} className="text-sm" />
-      </div>
+      <StatusBadge status={row.status} provisional={!row.isFinal} />
     </>
   )
 }

@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { backend, type ReactionEmoji } from '../api'
 import { useMe } from '../auth/SessionProvider'
-import { Button, Card, cx, ErrorState, errorMessage, Loading, PageHeader, Points, StatusBadge } from '../components/ui'
+import { Button, Card, cx, ErrorState, errorMessage, Loading, PageHeader, StatusBadge } from '../components/ui'
 import { keys, useDaySocial, useProfile, useUserDays } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { formatLongDate, formatShortDate, pragueDate, pragueTime } from '../lib/time'
@@ -58,10 +58,7 @@ export function DayPage() {
 
       {day && (
         <Card className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <StatusBadge status={day.status} provisional={!day.isFinal && day.status !== 'pending'} />
-            {day.status !== 'pending' && <Points value={day.points} className="text-lg" />}
-          </div>
+          <StatusBadge status={day.status} provisional={!day.isFinal && day.status !== 'pending'} />
           {day.zeroDay ? (
             <p className="font-semibold text-accent">{cs.day.zeroDay}</p>
           ) : (

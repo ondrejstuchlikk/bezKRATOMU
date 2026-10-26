@@ -3,7 +3,6 @@ import type { DayResult } from '../api'
 import { cs } from '../i18n/cs'
 import { formatWeekdayDate } from '../lib/time'
 import { formatGrams, formatPct } from '../lib/units'
-import { Points } from './ui'
 
 /** One line in a "recent days" list, linking to the day detail. */
 export function DayRowLink({ userId, day }: { userId: string; day: DayResult }) {
@@ -30,7 +29,6 @@ export function DayRowLink({ userId, day }: { userId: string; day: DayResult }) 
             {day.isPaused && ' · ⏸'}
           </span>
         </span>
-        {day.status !== 'pending' && <Points value={day.points} />}
         <span aria-hidden className="text-muted">›</span>
       </Link>
     </li>

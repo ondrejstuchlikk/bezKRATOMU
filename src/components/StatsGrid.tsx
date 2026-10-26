@@ -8,8 +8,8 @@ export function StatsGrid({ stats }: { stats: UserStats }) {
   const duration = (v: number | null) => (v === null ? '–' : formatDuration(v))
   return (
     <div className="grid grid-cols-2 gap-3">
-      <StatTile label={cs.stats.points} value={stats.totalPoints} />
       <StatTile
+        className="col-span-2"
         label={cs.stats.metDays}
         value={pct(stats.metPct)}
         hint={`${stats.metDays} / ${stats.scoredDays}`}

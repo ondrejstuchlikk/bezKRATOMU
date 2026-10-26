@@ -7,7 +7,6 @@ import {
   Cell,
   ComposedChart,
   Line,
-  LineChart,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -202,25 +201,6 @@ export function FeelingsChart({ days, doses, unit }: { days: DayResult[]; doses:
           isAnimationActive={false}
         />
       </ComposedChart>
-    </ResponsiveContainer>
-  )
-}
-
-/** Cumulative points over time. */
-export function PointsChart({ days }: { days: DayResult[] }) {
-  const { c, axis, grid, tooltip } = useChartStyle()
-  if (!days.length) return <ChartEmpty />
-  const data: { date: string; total: number }[] = []
-  for (const d of days) data.push({ date: d.date, total: (data[data.length - 1]?.total ?? 0) + d.points })
-  return (
-    <ResponsiveContainer width="100%" height={180}>
-      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-        {grid}
-        <XAxis dataKey="date" {...axis} tickFormatter={formatShortDate} minTickGap={20} />
-        <YAxis {...axis} width={44} />
-        <Tooltip {...tooltip} labelFormatter={(d) => formatShortDate(String(d))} formatter={(v) => [v, cs.chart.cumulative]} />
-        <Line type="monotone" dataKey="total" stroke={c.accent} strokeWidth={2.5} dot={false} isAnimationActive={false} />
-      </LineChart>
     </ResponsiveContainer>
   )
 }
