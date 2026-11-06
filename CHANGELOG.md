@@ -13,6 +13,8 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
   studies, for an average 70 kg adult and powder with 1.6 % mitragynine — not a measurement. Only you
   see it. Without a plan the card shows the milligrams and the chart without percentages. The science
   behind it is in `docs/pk-model/kratom-pk-model.pdf`. No migration needed.
+- **The *V těle teď* chart can show the last 12, 24 or 48 hours** (switch above the chart; 24 h is
+  the default). The phone remembers your choice. No migration needed.
 
 ## 2026-10-26
 

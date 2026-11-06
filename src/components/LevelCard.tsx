@@ -1,18 +1,40 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useMyDoses } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { levelPct, pkAt, pkSeries, PK_MEMORY_DAYS } from '../lib/pk'
 import { addDays, type ISODate } from '../lib/time'
 import { formatNumber } from '../lib/units'
-import { Card } from './ui'
+import { Card, Segmented } from './ui'
 
 // Recharts is big; keep it out of the first page load (like the Graf page).
 const LevelChart = lazy(() => import('./LevelChart'))
 
 const CHART_HEIGHT = 150
 const HOUR = 3_600_000
-const PAST_H = 24
 const FUTURE_H = 12
+
+type PastHours = 12 | 24 | 48
+const PAST_OPTIONS: PastHours[] = [12, 24, 48]
+const DEFAULT_PAST_H: PastHours = 24
+const RANGE_KEY = 'levelRangeH'
+
+/** The chosen chart range is a per-device convenience, so localStorage is fine (and optional). */
+function readPastHours(): PastHours {
+  try {
+    const v = Number(localStorage.getItem(RANGE_KEY))
+    return PAST_OPTIONS.includes(v as PastHours) ? (v as PastHours) : DEFAULT_PAST_H
+  } catch {
+    return DEFAULT_PAST_H
+  }
+}
+
+function savePastHours(h: PastHours) {
+  try {
+    localStorage.setItem(RANGE_KEY, String(h))
+  } catch {
+    // ignore (private mode etc.)
+  }
+}
 
 /** "98", "5,2", "0,4" – whole mg from 10 up, one decimal below. */
 function formatMg(mg: number): string {
@@ -30,6 +52,7 @@ function roundPct(pct: number): number {
  */
 export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date; baselineG: number | null }) {
   const doses = useMyDoses(addDays(today, -PK_MEMORY_DAYS), today)
+  const [pastH, setPastH] = useState<PastHours>(readPastHours)
   // Recompute once a minute, not on every render.
   const minute = Math.floor(now.getTime() / 60_000) * 60_000
 
@@ -39,7 +62,7 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
     const current = pkAt(list, minute)
     const pastDoses = list.filter((d) => new Date(d.takenAt).getTime() <= minute)
     const toY = (levelNM: number) => levelPct(levelNM, baselineG) ?? levelNM
-    const past = pkSeries(pastDoses, minute - PAST_H * HOUR, minute, 10)
+    const past = pkSeries(pastDoses, minute - pastH * HOUR, minute, 10)
     // Projection: only doses that already happened ("if you take nothing more").
     const future = pkSeries(pastDoses, minute, minute + FUTURE_H * HOUR, 10)
     const data = [
@@ -50,9 +73,9 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
     data[past.length - 1].future = data[past.length - 1].past
     const markers = pastDoses
       .map((d) => new Date(d.takenAt).getTime())
-      .filter((t) => t >= minute - PAST_H * HOUR)
+      .filter((t) => t >= minute - pastH * HOUR)
     return { current, data, markers, hasAny: pastDoses.length > 0 }
-  }, [doses.data, minute, baselineG])
+  }, [doses.data, minute, baselineG, pastH])
 
   if (!model) return null
   const pct = levelPct(model.current.levelNM, baselineG)
@@ -90,12 +113,21 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
           </div>
 
           <div aria-hidden="true">
+            <Segmented
+              className="mb-2"
+              value={pastH}
+              options={PAST_OPTIONS.map((h) => ({ value: h, label: cs.level.range(h) }))}
+              onChange={(h) => {
+                setPastH(h)
+                savePastHours(h)
+              }}
+            />
             <Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}>
-              <LevelChart data={model.data} markers={model.markers} now={minute} showPct={showPct} height={CHART_HEIGHT} />
+              <LevelChart data={model.data} markers={model.markers} now={minute} pastH={pastH} showPct={showPct} height={CHART_HEIGHT} />
             </Suspense>
             <div className="mt-1 flex justify-center gap-4 text-xs text-muted">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-4 rounded bg-accent" /> {cs.level.legendPast}
+                <span className="inline-block h-0.5 w-4 rounded bg-accent" /> {cs.level.legendPast(pastH)}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-4 border-t-2 border-dashed border-accent" /> {cs.level.legendFuture}

@@ -19,16 +19,23 @@ export default function LevelChart({
   data,
   markers,
   now,
+  pastH,
   showPct,
   height,
 }: {
   data: LevelChartPoint[]
   markers: number[]
   now: number
+  /** Hours of history shown (12, 24 or 48); the projection is always 12 h. */
+  pastH: number
   showPct: boolean
   height: number
 }) {
   const c = useThemeColors()
+  // About six ticks whatever the range: every 4 h (12 h view), 6 h (24 h) or 12 h (48 h).
+  const tickStep = pastH <= 12 ? 4 : pastH <= 24 ? 6 : 12
+  const ticks: number[] = []
+  for (let h = -pastH; h <= 12; h += tickStep) ticks.push(now + h * HOUR)
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: showPct ? -4 : 8 }}>
@@ -37,7 +44,7 @@ export default function LevelChart({
           type="number"
           scale="time"
           domain={['dataMin', 'dataMax']}
-          ticks={[-24, -18, -12, -6, 0, 6, 12].map((h) => now + h * HOUR)}
+          ticks={ticks}
           tickFormatter={(t) => (t === now ? cs.level.now : pragueTime(new Date(Number(t))))}
           stroke={c.muted}
           fontSize={11}

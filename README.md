@@ -106,7 +106,8 @@ sends. Lock-screen texts never contain grams.
   7-OH-mitragynine from your own doses of the last 14 days with a published two-compartment
   pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).
   It shows the milligrams not yet eliminated and a combined level, where 100 % = the average level at the
-  plan's baseline. Runs only in the browser and only on your own doses. The literature review, maths,
+  plan's baseline. The chart shows the last 12, 24 (default) or 48 hours plus a 12-hour projection; the choice
+  is kept in `localStorage`. Runs only in the browser and only on your own doses. The literature review, maths,
   validation and limits are in `docs/pk-model/kratom-pk-model.pdf`; `docs/pk-model/model.py` regenerates
   the report's numbers and the constants used in `pk.ts`.
 
@@ -120,6 +121,10 @@ user's data. Requires `brew install postgresql@17` and a running server.
 
 - **Help contacts**: `src/config/helpContacts.ts` — ⚠️ verify every number and link before publishing.
 - **Czech texts**: `src/i18n/cs.ts` (all UI strings in one place).
+- **Kratom powder strength** (1.6 % mitragynine) for the *V těle teď* card: change `F_MG_CONTENT` in
+  `docs/pk-model/model.py`, run `python3 -I docs/pk-model/model.py`, copy the numbers from
+  `docs/pk-model/ts_constants.json` into `src/lib/pk.ts`, update the "1,6 %" texts in `src/i18n/cs.ts`, and
+  run `npm test` (the tests that pin 1.6 % will need their values updated too).
 - **Colors / fonts**: `src/index.css`.
 - **PWA icons**: edit `public/pwa-icon.svg`, then run `npx pwa-assets-generator`.
 

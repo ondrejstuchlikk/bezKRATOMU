@@ -77,6 +77,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
   A running record still reveals roughly when someone last dosed — the user accepted that. Percentages
   (% of baseline, % of today's limit) are visible to everyone. The feed and lock-screen push texts never
   contain grams. Any new RPC must follow the same pattern and be granted to `authenticated` only.
+  The *V těle teď* estimate (`src/lib/pk.ts`) reveals when someone dosed, so it is computed only in the
+  browser from the user's **own** doses; never compute or show it for other users.
 - **Logic exists twice (SQL + TS).** Changing plan or scoring rules means changing the SQL *and*
   `src/lib/*.ts`, then running both test suites. The demo backend must mirror the real backend's rules and
   privacy filtering.
@@ -157,6 +159,7 @@ Marek, Bára — all PIN `123456`.
   adult; own data only, shown on Dnes below today's doses; no plan → mg + chart without %.
 - Rebuild the report: `python3 -I docs/pk-model/model.py`, then run `pdflatex` 3–4 times in `docs/pk-model`
   (it is a TeX Live install at `/Library/TeX/texbin`) and delete the `.aux/.log/.toc/.out` files.
+  To look at the pages, render them with `pypdfium2` (installed for `python3`); there is no `pdftoppm`.
 - Keep the wording honest: an estimate, not a measurement, and never a cue for when to dose.
 - PMC (`pmc.ncbi.nlm.nih.gov`) sometimes shows a bot check to WebFetch; NCBI E-utilities
   (`eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=…`) still return abstracts.
