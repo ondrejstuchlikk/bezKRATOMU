@@ -3,6 +3,17 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-06
+
+- **New card on *Dnes*: "V těle teď (odhad)".** It shows roughly how much mitragynine and
+  7-OH-mitragynine is still in your body, in milligrams, and a *Hladina* (level) as a percentage:
+  100 % = your average level at the start of your plan, so halving your daily amount brings it to
+  about 50 %. A small chart shows the last 24 hours (dots = your doses) and, dashed, how the level
+  would fall over the next 12 hours if you take nothing more. It's a rough estimate based on clinical
+  studies, for an average 70 kg adult and powder with 1.6 % mitragynine — not a measurement. Only you
+  see it. Without a plan the card shows the milligrams and the chart without percentages. The science
+  behind it is in `docs/pk-model/kratom-pk-model.pdf`. No migration needed.
+
 ## 2026-10-26
 
 - **Žebříček and Skupina are now one page: *Skupina*.** At the top there's a row of tabs:

@@ -102,6 +102,13 @@ sends. Lock-screen texts never contain grams.
   produce fake records. The record, the 5-day average and the all-time average are visible to the group;
   the time of the latest dose only to its owner.
 - **Time zone**: all days are calendar days in `Europe/Prague` (DST-safe).
+- **Kratom in the body** (*Dnes* → *V těle teď*): `src/lib/pk.ts` estimates mitragynine and
+  7-OH-mitragynine from your own doses of the last 14 days with a published two-compartment
+  pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).
+  It shows the milligrams not yet eliminated and a combined level, where 100 % = the average level at the
+  plan's baseline. Runs only in the browser and only on your own doses. The literature review, maths,
+  validation and limits are in `docs/pk-model/kratom-pk-model.pdf`; `docs/pk-model/model.py` regenerates
+  the report's numbers and the constants used in `pk.ts`.
 
 ## Database tests
 
@@ -119,4 +126,7 @@ user's data. Requires `brew install postgresql@17` and a running server.
 ## Known limitations (v1)
 
 - No PIN reset, no account deletion UI, no data export.
+- The *V těle teď* estimate is a population average for one powder strength (1.6 % mitragynine);
+  it has no per-user settings (body weight, product strength) and doesn't know doses taken before
+  someone started logging.
 - A 6-digit PIN is only as strong as Supabase's sign-in rate limiting; keep the app link among friends.

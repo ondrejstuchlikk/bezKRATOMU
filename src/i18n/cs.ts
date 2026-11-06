@@ -220,6 +220,29 @@ export const cs = {
     dayAdd: 'Doplnit dávku',
   },
 
+  level: {
+    title: 'V těle teď (odhad)',
+    mitragynine: 'mitragyninu',
+    sevenOh: '7-OH-mitragyninu',
+    level: 'Hladina',
+    now: 'teď',
+    noDoses: 'Za posledních 14 dní nemáš zapsanou žádnou dávku – podle modelu už v těle nic není.',
+    legendPast: 'posledních 24 h',
+    legendFuture: 'když si už nic nevezmeš',
+    tooltipLevel: 'Hladina',
+    pctHint: '100 % = průměrná hladina na začátku tvého plánu.',
+    noPlanHint: 'Procenta uvidíš, až si nastavíš plán (100 % = průměr na začátku plánu).',
+    disclaimer:
+      'Hrubý odhad podle klinických studií pro průměrného dospělého (70 kg) a prášek s 1,6 % mitragyninu. Není to měření – lidé se mezi sebou liší i několikanásobně.',
+    howTitle: 'Jak se to počítá?',
+    how: [
+      'Po dávce se mitragynin vstřebá asi za 1–1,5 hodiny. Pak hladina v krvi rychle klesá zhruba 6 hodin a potom už jen pomalu, několik dní.',
+      'Játra z něj vyrábějí 7-OH-mitragynin. Je ho málo, ale na opioidní receptory působí asi 10× silněji, takže křivka započítává obě látky podle síly účinku.',
+      'Miligramy = kolik z toho, co sis vzal(a), tělo ještě neodbouralo. Předpokládá se, že se vstřebalo všechno, takže je to spíš horní odhad. Většina je uložená ve tkáních, ne v krvi.',
+      'Hladina neříká, jak se cítíš, ani kdy přijdou absťáky. Nepoužívej ji k načasování další dávky.',
+    ],
+  },
+
   dose: {
     addTitle: 'Nová dávka',
     editTitle: 'Upravit dávku',

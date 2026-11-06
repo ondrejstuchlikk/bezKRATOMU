@@ -55,6 +55,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `src/lib/time.ts` | Prague-time helpers (`pragueToday`, `pragueLocalToInstant`, `addDays`, …). Days are `Europe/Prague` calendar days |
 | `src/lib/units.ts` | `formatGrams`, `formatNumber`, `formatPct`, teaspoon conversion, `MAX_DOSE_G` |
 | `src/lib/plan.ts`, `scoring.ts`, `days.ts` | TS mirrors of the SQL plan/scoring logic (used by demo mode, unit-tested) |
+| `src/lib/pk.ts` | Kratom-in-the-body estimate (closed-form sums of exponentials). Constants come from `docs/pk-model/ts_constants.json`, written by `docs/pk-model/model.py`; the full write-up is `docs/pk-model/kratom-pk-model.pdf` (LaTeX source next to it). Change the model there first, then copy the constants, then rerun `pk.test.ts` |
+| `src/components/LevelCard.tsx` | The *V těle teď* card on Dnes; its chart is `LevelChart.tsx`, lazy-loaded so Recharts stays out of the first page load |
 | `src/lib/gaps.ts` | TS mirror of `private.gap_stats` (time between doses); `gaps.test.ts` pins the same numbers as the SQL checks |
 | `src/lib/parity.test.ts` | Checks TS scoring == SQL scoring using `src/lib/__fixtures__/sql_user_days.json` (written by the SQL test run) |
 | `supabase/migrations/NNNN_*.sql` | Database schema/functions, applied in order |
@@ -146,6 +148,18 @@ Marek, Bára — all PIN `123456`.
   Mac also sees an unrelated project — always pass `--project-ref yhusaoowjzmrdhbbgglw`. pg_cron calls the
   function; `private.claim_push_notifications()` (latest in `0011`) decides what to send.
 - Never put the `service_role` key anywhere in the repo. The anon key is public by design.
+
+## The pharmacokinetic model (docs/pk-model)
+
+- User decisions (2026-11-06): leaf powder only, 1.6 % mitragynine / 0.001 % 7-OH; one combined line
+  (potency-weighted MG + 7-OH); relative % with 100 % = steady-state daily *mean* at `baselineG`; also mg
+  "not yet eliminated" (dose-equivalent, assumes full absorption) for MG and 7-OH separately; average 70 kg
+  adult; own data only, shown on Dnes below today's doses; no plan → mg + chart without %.
+- Rebuild the report: `python3 -I docs/pk-model/model.py`, then run `pdflatex` 3–4 times in `docs/pk-model`
+  (it is a TeX Live install at `/Library/TeX/texbin`) and delete the `.aux/.log/.toc/.out` files.
+- Keep the wording honest: an estimate, not a measurement, and never a cue for when to dose.
+- PMC (`pmc.ncbi.nlm.nih.gov`) sometimes shows a bot check to WebFetch; NCBI E-utilities
+  (`eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=…`) still return abstracts.
 
 ## Open items / ideas
 

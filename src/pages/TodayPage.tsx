@@ -4,6 +4,7 @@ import { backend, type DayResult, type Dose } from '../api'
 import { useMe } from '../auth/SessionProvider'
 import { DoseSheet } from '../components/DoseSheet'
 import { PlusIcon } from '../components/icons'
+import { LevelCard } from '../components/LevelCard'
 import { Button, Card, cx, ErrorState, errorMessage, Loading, StatusBadge } from '../components/ui'
 import {
   useActivePlan,
@@ -111,6 +112,8 @@ export function TodayPage() {
           onEdit={(d) => setSheet({ dose: d, date: today })}
         />
       </Card>
+
+      <LevelCard today={today} now={now} baselineG={plan.data?.baselineG ?? null} />
 
       {yesterdayRow && (
         <YesterdayCard
