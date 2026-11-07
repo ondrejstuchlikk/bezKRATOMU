@@ -56,7 +56,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `src/lib/units.ts` | `formatGrams`, `formatNumber`, `formatPct`, teaspoon conversion, `MAX_DOSE_G` |
 | `src/lib/plan.ts`, `scoring.ts`, `days.ts` | TS mirrors of the SQL plan/scoring logic (used by demo mode, unit-tested) |
 | `src/lib/pk.ts` | Kratom-in-the-body estimate (closed-form sums of exponentials). Constants come from `docs/pk-model/ts_constants.json`, written by `docs/pk-model/model.py`; the full write-up is `docs/pk-model/kratom-pk-model.pdf` (LaTeX source next to it). Change the model there first, then copy the constants, then rerun `pk.test.ts` |
-| `src/components/LevelCard.tsx` | The *V těle teď* card on Dnes; its chart is `LevelChart.tsx`, lazy-loaded so Recharts stays out of the first page load |
+| `src/components/LevelCard.tsx` | The *V těle teď* card on Dnes (+ "when will it drop" projection via `pkTimesBelow`); its chart is `LevelChart.tsx`, lazy-loaded so Recharts stays out of the first page load |
+| `supabase/migrations/0016_level_notifications.sql` | SQL copy of the combined line (`private.pk_level`, same constants as `pk.ts`) + morning recap / milestone pushes (`private.claim_level_notifications(p_now)`). Changing the model constants means changing both; `pk.test.ts` and the SQL checks pin the same numbers |
 | `src/lib/gaps.ts` | TS mirror of `private.gap_stats` (time between doses); `gaps.test.ts` pins the same numbers as the SQL checks |
 | `src/lib/parity.test.ts` | Checks TS scoring == SQL scoring using `src/lib/__fixtures__/sql_user_days.json` (written by the SQL test run) |
 | `supabase/migrations/NNNN_*.sql` | Database schema/functions, applied in order |
@@ -77,8 +78,10 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
   A running record still reveals roughly when someone last dosed — the user accepted that. Percentages
   (% of baseline, % of today's limit) are visible to everyone. The feed and lock-screen push texts never
   contain grams. Any new RPC must follow the same pattern and be granted to `authenticated` only.
-  The *V těle teď* estimate (`src/lib/pk.ts`) reveals when someone dosed, so it is computed only in the
-  browser from the user's **own** doses; never compute or show it for other users.
+  The *V těle teď* estimate (`src/lib/pk.ts`) reveals when someone dosed, so it is only ever computed from
+  the user's **own** doses and shown to them: in the browser, and (since 0016, user's decision 2026-11-07)
+  in SQL `private.pk_level` for that user's own push notifications. Never compute or show it for other users,
+  and never expose it through an RPC.
 - **Logic exists twice (SQL + TS).** Changing plan or scoring rules means changing the SQL *and*
   `src/lib/*.ts`, then running both test suites. The demo backend must mirror the real backend's rules and
   privacy filtering.
@@ -101,7 +104,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0015 applied (as of 2026-10-17). `0005_cron.sql` and `0010_push_cron.sql` need
+- Live DB has 0001–0016 applied (as of 2026-11-07).
+- Postgres `exp()` raises an error on underflow (JS returns 0): clamp exponents, e.g. `exp(greatest(x, -700))`. `0005_cron.sql` and `0010_push_cron.sql` need
   pg_cron / Vault and are skipped by the local test runner.
 
 ## Commands and checks
@@ -109,7 +113,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 ```bash
 npm run dev          # dev server (uses .env.local → REAL Supabase if present!)
 npm run build        # tsc -b + vite build — must pass
-npm run lint         # oxlint; 5 pre-existing "only-export-components" warnings are expected
+npm run lint         # oxlint; 7 pre-existing "only-export-components" warnings (SessionProvider, layout, ui) are expected
 npm test             # vitest unit tests
 ```
 

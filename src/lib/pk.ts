@@ -81,3 +81,32 @@ export function levelPct(levelNM: number, baselineG: number | null | undefined):
   if (!baselineG || baselineG <= 0) return null
   return (100 * levelNM) / (PK_REF_NM_PER_G_DAY * baselineG)
 }
+
+/**
+ * Projection "if you take nothing more": for each threshold (nM), the first moment after `from` at which the
+ * level, past its coming peak, falls below it. Only doses up to `from` count. null when the threshold is not
+ * below the peak, or not reached within PK_MEMORY_DAYS. Times are on a `stepMin` grid.
+ */
+export function pkTimesBelow(doses: readonly PkDose[], from: number, thresholdsNM: readonly number[], stepMin = 5): (number | null)[] {
+  const past = doses.filter((d) => new Date(d.takenAt).getTime() <= from)
+  const out: (number | null)[] = thresholdsNM.map(() => null)
+  if (!past.length) return out
+  const step = stepMin * 60_000
+  const end = from + PK_MEMORY_DAYS * 24 * HOUR_MS
+  let prev = pkAt(past, from).levelNM
+  let peak = prev
+  let falling = false
+  for (let t = from + step; t <= end; t += step) {
+    const level = pkAt(past, t).levelNM
+    if (!falling && level < prev) falling = true
+    if (!falling) peak = Math.max(peak, level)
+    if (falling) {
+      thresholdsNM.forEach((thr, i) => {
+        if (out[i] === null && thr < peak && level < thr) out[i] = t
+      })
+      if (out.every((v, i) => v !== null || !(thresholdsNM[i] < peak))) break
+    }
+    prev = level
+  }
+  return out
+}

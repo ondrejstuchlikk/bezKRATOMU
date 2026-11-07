@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { levelPct, pkAt, pkSeries, PK_REF_NM_PER_G_DAY, type PkDose } from './pk'
+import { levelPct, pkAt, pkSeries, pkTimesBelow, PK_REF_NM_PER_G_DAY, type PkDose } from './pk'
 
 // Independent check: integrate the model ODEs (docs/pk-model/kratom-pk-model.pdf, eqs. 1–3) with RK4
 // from the raw published parameters, and compare with the closed-form constants in pk.ts.
@@ -110,5 +110,35 @@ describe('pk behaviour', () => {
     expect(levelPct(100, null)).toBeNull()
     expect(levelPct(100, 0)).toBeNull()
     expect(levelPct(PK_REF_NM_PER_G_DAY * 4, 4)).toBeCloseTo(100, 9)
+  })
+})
+
+describe('SQL parity (private.pk_level, supabase/tests/rls_and_scoring.sql)', () => {
+  it('gives the same levels as the SQL checks', () => {
+    expect(pkAt([dose(0, 1)], T0 + 2 * H).levelNM).toBeCloseTo(184.226, 3)
+    expect(pkAt([dose(0, 1)], T0 + 12 * H).levelNM).toBeCloseTo(27.783, 3)
+  })
+})
+
+describe('pkTimesBelow', () => {
+  const STEP = 5 * 60_000
+  it('finds when the level falls below each threshold, starting from the coming peak', () => {
+    const doses = [dose(0, 1)]
+    const peak = 187.68
+    // Asked right at the dose: the level is still rising, so the crossing is after the peak.
+    const [half, tenth, above] = pkTimesBelow(doses, T0, [peak / 2, peak / 10, peak * 2])
+    expect(above).toBeNull()
+    for (const [t, thr] of [[half, peak / 2], [tenth, peak / 10]] as const) {
+      expect(t).not.toBeNull()
+      expect(pkAt(doses, t!).levelNM).toBeLessThan(thr)
+      expect(pkAt(doses, t! - STEP).levelNM).toBeGreaterThanOrEqual(thr)
+    }
+    expect((half! - T0) / H).toBeCloseTo(5.3, 0)
+  })
+
+  it('ignores doses after the start ("if you take nothing more") and returns null without doses', () => {
+    expect(pkTimesBelow([dose(1, 5)], T0, [1])).toEqual([null])
+    const a = pkTimesBelow([dose(0, 1)], T0 + H, [50])
+    expect(pkTimesBelow([dose(0, 1), dose(3, 4)], T0 + H, [50])).toEqual(a)
   })
 })

@@ -3,6 +3,20 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-07
+
+- **New, optional notifications about the *V těle teď* estimate** (*Nastavení → Upozornění →
+  Odhad v těle*, off by default). In the morning (8–10 h) a short comparison: "Včera byl nejvyšší odhad
+  v těle o 12 % nižší než předevčírem". During the day (9–22 h, at most once a day): when the estimated
+  level drops to its lowest in 3, 7, 14 or 30 days, or below 75 / 50 / 25 / 10 % of your starting level for
+  the first time in your plan. A low during the night is reported at the first check after 9:00, so it never
+  wakes you. Computed only from your own doses; no grams on the lock screen.
+  Migration: `0016_level_notifications.sql` (run it **before** this version goes live, or the Nastavení
+  page shows an error).
+- **The *V těle teď* card now says when the level will drop** if you take nothing more, e.g.
+  "pod 50 % – dnes kolem 22:30". Without a plan (or once you're below 10 %) it shows when it falls to half
+  and to a tenth of the current level. No migration needed.
+
 ## 2026-11-06
 
 - **New card on *Dnes*: "V těle teď (odhad)".** It shows roughly how much mitragynine and

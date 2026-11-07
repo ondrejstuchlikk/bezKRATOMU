@@ -21,6 +21,8 @@ export interface MySettings {
   reminderHour: number | null
   /** Notify about reactions and comments on my days. */
   notifySocial: boolean
+  /** Morning recap and milestones about my own body-level estimate (src/lib/pk.ts). */
+  notifyLevel: boolean
 }
 
 export interface ActivePlan {

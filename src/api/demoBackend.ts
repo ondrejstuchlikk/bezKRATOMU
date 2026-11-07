@@ -37,6 +37,7 @@ interface DemoUser {
   /** Optional because demo data saved by older versions doesn't have them. */
   reminderHour?: number | null
   notifySocial?: boolean
+  notifyLevel?: boolean
   /** Simulated friend: doses are generated instead of stored. */
   bot: { seed: number; missRate: number; overRate: number; usesTeaspoon: boolean } | null
 }
@@ -522,6 +523,7 @@ export function createDemoBackend(): Backend {
         pricePerGram: u.pricePerGram,
         reminderHour: u.reminderHour ?? null,
         notifySocial: u.notifySocial ?? false,
+        notifyLevel: u.notifyLevel ?? false,
       }
     },
 
@@ -533,6 +535,7 @@ export function createDemoBackend(): Backend {
       if (patch.pricePerGram !== undefined) u.pricePerGram = patch.pricePerGram
       if (patch.reminderHour !== undefined) u.reminderHour = patch.reminderHour
       if (patch.notifySocial !== undefined) u.notifySocial = patch.notifySocial
+      if (patch.notifyLevel !== undefined) u.notifyLevel = patch.notifyLevel
       save()
     },
 

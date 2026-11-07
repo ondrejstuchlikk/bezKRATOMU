@@ -134,6 +134,20 @@ export function NotificationSettings({ settings }: { settings: MySettings }) {
             <p className="text-sm text-muted">{cs.notifications.socialHint}</p>
           </div>
 
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-4">
+              <span className="font-medium">{cs.notifications.level}</span>
+              <div className={busy ? 'pointer-events-none opacity-50' : ''}>
+                <Toggle
+                  checked={settings.notifyLevel}
+                  onChange={(on) => run(() => update({ notifyLevel: on }))}
+                  label={cs.notifications.level}
+                />
+              </div>
+            </div>
+            <p className="text-sm text-muted">{cs.notifications.levelHint}</p>
+          </div>
+
           <p className="text-xs text-muted">{cs.notifications.privacy}</p>
         </>
       )}

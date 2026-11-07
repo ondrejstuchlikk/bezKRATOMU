@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0015`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0016`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -52,7 +52,8 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 
 ## Push notifications (one time)
 
-Evening reminder (when less than half of today's limit is logged) and reactions/comments, via web push. Android: Chrome.
+Evening reminder (when less than half of today's limit is logged), reactions/comments and (opt-in) the
+*V těle teď* estimate: a morning recap and "lowest level" milestones, via web push. Android: Chrome.
 iPhone: iOS 16.4+, only when the app is added to the home screen.
 
 1. Generate a key pair: `npx web-push generate-vapid-keys --json`. Put the public key in
@@ -107,7 +108,13 @@ sends. Lock-screen texts never contain grams.
   pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).
   It shows the milligrams not yet eliminated and a combined level, where 100 % = the average level at the
   plan's baseline. The chart shows the last 12, 24 (default) or 48 hours plus a 12-hour projection; the choice
-  is kept in `localStorage`. Runs only in the browser and only on your own doses. The literature review, maths,
+  is kept in `localStorage`. Below it: when the level would fall under the next steps (75/50/25/10 % of
+  baseline; without a plan or below 10 %: to half and a tenth of now) if no more is taken. The card runs only
+  in the browser and only on your own doses. The opt-in notifications (`0016_level_notifications.sql`) compute
+  the same combined line in SQL (`private.pk_level`), only for the owner's own pushes: a morning recap (8–10 h:
+  yesterday's highest level vs. the day before) and at most one milestone a day (9–22 h): the lowest level in
+  3/7/14/30 days, or below 75/50/25/10 % of baseline for the first time in the plan. The night is checked in one
+  go at the first check after 9:00, so nobody is woken up. The literature review, maths,
   validation and limits are in `docs/pk-model/kratom-pk-model.pdf`; `docs/pk-model/model.py` regenerates
   the report's numbers and the constants used in `pk.ts`.
 

@@ -179,7 +179,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const settings = check(
         await sb
           .from('user_settings')
-          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social')
+          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level')
           .eq('user_id', id)
           .single(),
       ) as Row
@@ -190,6 +190,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         pricePerGram: num(settings.price_per_gram),
         reminderHour: num(settings.reminder_hour),
         notifySocial: Boolean(settings.notify_social),
+        notifyLevel: Boolean(settings.notify_level),
       }
     },
 
@@ -203,6 +204,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       if (patch.pricePerGram !== undefined) settings.price_per_gram = patch.pricePerGram
       if (patch.reminderHour !== undefined) settings.reminder_hour = patch.reminderHour
       if (patch.notifySocial !== undefined) settings.notify_social = patch.notifySocial
+      if (patch.notifyLevel !== undefined) settings.notify_level = patch.notifyLevel
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))

@@ -228,6 +228,65 @@ delete from auth.users where id = :'b';
 select public.expect_eq((select count(*)::text from daily_results where user_id = :'b'), '0', 'deleting a user still works');
 select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
 
+-- ===== Level estimate notifications (0016; fixed dates) =====
+insert into auth.users (email, raw_user_meta_data) values ('eva@kratom.local', '{"nickname":"Eva"}') returning id as e \gset
+select set_config('request.jwt.claim.sub', :'e', false) \g /dev/null
+-- Same numbers as src/lib/pk.test.ts ("SQL parity").
+insert into doses (user_id, taken_at, grams, input_unit, input_amount)
+  values (:'e', '2026-09-01 08:00'::timestamp at time zone 'Europe/Prague', 1, 'g', 1);
+select public.expect_eq(round(private.pk_level(:'e', '2026-09-01 10:00'::timestamp at time zone 'Europe/Prague')::numeric, 3)::text,
+  '184.226', 'pk_level 2 h after 1 g');
+select public.expect_eq(round(private.pk_level(:'e', '2026-09-01 20:00'::timestamp at time zone 'Europe/Prague')::numeric, 3)::text,
+  '27.783', 'pk_level 12 h after 1 g');
+select public.expect_eq(private.pk_level(:'e', '2026-09-01 07:59'::timestamp at time zone 'Europe/Prague')::text, '0', 'pk_level before the dose');
+delete from doses where user_id = :'e';
+-- 3 g at 8:00 and 20:00 from 10-01 to 10-18, 2 g on 10-19, then only one dose on 10-20 at 8:00.
+insert into doses (user_id, taken_at, grams, input_unit, input_amount)
+select :'e', (day + t)::timestamp at time zone 'Europe/Prague', g, 'g', g
+from generate_series(date '2026-10-01', date '2026-10-19', interval '1 day') day
+cross join (values (time '08:00'), (time '20:00')) v(t)
+cross join lateral (select case when day::date = date '2026-10-19' then 2 else 3 end as g) x;
+insert into doses (user_id, taken_at, grams, input_unit, input_amount)
+  values (:'e', '2026-10-20 08:00'::timestamp at time zone 'Europe/Prague', 3, 'g', 3);
+insert into plans (user_id, baseline_g, target_g, start_date, duration_days, curve, preset)
+  values (:'e', 8, 0, date '2026-10-01', 30, 'linear', 'custom');
+set role authenticated;
+select save_push_subscription('https://fcm.googleapis.com/fcm/send/dev-eva', 'p256dh-e', 'auth-e');
+update user_settings set notify_level = true;
+select public.expect_error($$update user_settings set level_low_on = current_date$$, 'write level_low_on');
+select public.expect_error($$update user_settings set level_pct_reached = 10$$, 'write level_pct_reached');
+select public.expect_error($$select private.claim_level_notifications(now())$$, 'claim level notifications as user');
+select public.expect_error($$select private.pk_level(auth.uid(), now())$$, 'pk_level as user');
+reset role;
+create function public.level_claim(p_local text) returns text language sql as $$
+  select coalesce(string_agg(tag || ': ' || body, ' | ' order by tag), '-')
+  from private.claim_level_notifications(p_local::timestamp at time zone 'Europe/Prague')
+$$;
+-- Expected values cross-checked with an independent Python version of the same rules.
+select public.expect_eq(public.level_claim('2026-10-20 07:55'), '-', 'level: nothing before 8:00');
+select public.expect_eq(public.level_claim('2026-10-20 08:30'),
+  'level-recap: Včera byl nejvyšší odhad v těle o 24 % nižší než předevčírem 📉', 'level: morning recap');
+select public.expect_eq(public.level_claim('2026-10-20 08:35'), '-', 'level: recap only once');
+-- Right after the morning dose the level is high (no milestone, not a new low).
+select public.expect_eq(public.level_claim('2026-10-20 09:00'), '-', 'level: no milestone after a dose');
+-- 75 % and 50 % are crossed between checks: only the lower one is announced.
+select public.expect_eq(public.level_claim('2026-10-20 21:00'),
+  'level-low: Nový milník: odhad v těle klesl pod 50 % tvého výchozího stavu 🌱', 'level: milestone');
+select public.expect_eq(public.level_claim('2026-10-20 21:30'), '-', 'level: one milestone a day');
+select public.expect_eq(public.level_claim('2026-10-21 08:30'),
+  'level-recap: Včera byl nejvyšší odhad v těle o 26 % vyšší než předevčírem.', 'level: recap when higher');
+-- The first check of the day covers the night since the last check.
+select public.expect_eq(public.level_claim('2026-10-21 09:00'),
+  'level-low: Nový milník: odhad v těle klesl pod 25 % tvého výchozího stavu 🌱', 'level: overnight milestone');
+-- 25 % is already announced and 10 % not reached: a new low instead. 30 days back there were no
+-- doses yet (level 0), so it is the lowest in 14 days, not 30.
+select public.expect_eq(public.level_claim('2026-10-22 09:00'),
+  'level-low: Odhad v těle klesl na nejnižší hodnotu za 14 dní. Tělo se čistí 🌱 | '
+  'level-recap: Včera byl nejvyšší odhad v těle o 77 % nižší než předevčírem 📉', 'level: lowest in 14 days');
+update user_settings set notify_level = false where user_id = :'e';
+select public.expect_eq(public.level_claim('2026-10-23 09:00'), '-', 'level: off means off');
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
+
 -- ===== Anonymous =====
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;

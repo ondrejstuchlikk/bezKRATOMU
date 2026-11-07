@@ -1,8 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useMyDoses } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { levelPct, pkAt, pkSeries, PK_MEMORY_DAYS } from '../lib/pk'
-import { addDays, type ISODate } from '../lib/time'
+import { levelPct, pkAt, pkSeries, pkTimesBelow, PK_MEMORY_DAYS, PK_REF_NM_PER_G_DAY } from '../lib/pk'
+import { addDays, formatWeekdayDate, pragueDate, pragueTime, type ISODate } from '../lib/time'
 import { formatNumber } from '../lib/units'
 import { Card, Segmented } from './ui'
 
@@ -17,6 +17,9 @@ type PastHours = 12 | 24 | 48
 const PAST_OPTIONS: PastHours[] = [12, 24, 48]
 const DEFAULT_PAST_H: PastHours = 24
 const RANGE_KEY = 'levelRangeH'
+/** Projection thresholds, % of the baseline level (the same steps as the milestone notifications). */
+const PROJECTION_PCT = [75, 50, 25, 10]
+const PROJECTION_ROWS = 2
 
 /** The chosen chart range is a per-device convenience, so localStorage is fine (and optional). */
 function readPastHours(): PastHours {
@@ -44,6 +47,34 @@ function formatMg(mg: number): string {
 /** Rounded to 5 %, as the model is only a rough estimate. */
 function roundPct(pct: number): number {
   return Math.round(pct / 5) * 5
+}
+
+/** "dnes kolem 21:40", "zítra kolem 06:10", "po 9. 11. kolem 14:00" (rounded to 10 minutes). */
+function formatWhen(t: number, today: ISODate): string {
+  const at = new Date(Math.round(t / 600_000) * 600_000)
+  const date = pragueDate(at)
+  const day = date === today ? cs.level.today : date === addDays(today, 1) ? cs.level.tomorrow : formatWeekdayDate(date)
+  return cs.level.projectionWhen(day, pragueTime(at))
+}
+
+/** "If you take nothing more": when the level falls below the next steps (with a plan), else to ½ and ⅒ of now. */
+type ProjectionRow = { label: string; t: number | null }
+const reached = (rows: ProjectionRow[]) => rows.filter((r): r is { label: string; t: number } => r.t !== null)
+
+function projection(doses: Parameters<typeof pkTimesBelow>[0], from: number, currentNM: number, baselineG: number | null) {
+  if (baselineG && baselineG > 0) {
+    const ref = PK_REF_NM_PER_G_DAY * baselineG
+    const times = pkTimesBelow(doses, from, PROJECTION_PCT.map((p) => (p / 100) * ref))
+    const rows = reached(PROJECTION_PCT.map((p, i) => ({ label: cs.level.projectionPct(p), t: times[i] })))
+    // Already below the last step: fall back to half / a tenth of now.
+    if (rows.length) return rows.slice(0, PROJECTION_ROWS)
+  }
+  if (currentNM < 1) return []
+  const [half, tenth] = pkTimesBelow(doses, from, [currentNM / 2, currentNM / 10])
+  return reached([
+    { label: cs.level.projectionHalf, t: half },
+    { label: cs.level.projectionTenth, t: tenth },
+  ])
 }
 
 /**
@@ -74,8 +105,9 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
     const markers = pastDoses
       .map((d) => new Date(d.takenAt).getTime())
       .filter((t) => t >= minute - pastH * HOUR)
-    return { current, data, markers, hasAny: pastDoses.length > 0 }
-  }, [doses.data, minute, baselineG, pastH])
+    const ahead = projection(pastDoses, minute, current.levelNM, baselineG).map((r) => ({ label: r.label, when: formatWhen(r.t, today) }))
+    return { current, data, markers, ahead, hasAny: pastDoses.length > 0 }
+  }, [doses.data, minute, baselineG, pastH, today])
 
   if (!model) return null
   const pct = levelPct(model.current.levelNM, baselineG)
@@ -134,6 +166,20 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
               </span>
             </div>
           </div>
+
+          {model.ahead.length > 0 && (
+            <div className="text-sm">
+              <div className="text-muted">{cs.level.projectionTitle}</div>
+              <ul className="mt-1 space-y-0.5">
+                {model.ahead.map((r) => (
+                  <li key={r.label} className="flex justify-between gap-3">
+                    <span>{r.label}</span>
+                    <span className="font-medium tabular-nums">{r.when}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <p className="text-xs text-muted">{showPct ? cs.level.pctHint : cs.level.noPlanHint}</p>
         </>
