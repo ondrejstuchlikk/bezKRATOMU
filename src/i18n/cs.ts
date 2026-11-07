@@ -222,13 +222,14 @@ export const cs = {
 
   level: {
     title: 'V těle teď (odhad)',
-    mitragynine: 'mitragyninu',
-    sevenOh: '7-OH-mitragyninu',
+    kratom: 'kratomu (podle účinku)',
+    alkaloidsMg: (mg: string, oh: string) => `v těle ≈ ${mg} mg mitragyninu · ≈ ${oh} mg 7-OH`,
     level: 'Hladina',
     now: 'teď',
     noDoses: 'Za posledních 14 dní nemáš zapsanou žádnou dávku – podle modelu už v těle nic není.',
-    legendPast: (h: number) => `posledních ${h} h`,
-    range: (h: number) => `${h} h`,
+    legendPast: (h: number) => (h < 72 ? `posledních ${h} h` : h / 24 < 5 ? `poslední ${h / 24} dny` : `posledních ${h / 24} dní`),
+    range: (h: number) => (h < 72 ? `${h} h` : h / 24 < 5 ? `${h / 24} dny` : `${h / 24} dní`),
+    rangeMore: 'Více',
     legendFuture: 'když si už nic nevezmeš',
     projectionTitle: 'Když si už nic nevezmeš, hladina klesne (odhad):',
     projectionPct: (pct: number) => `pod ${pct} %`,
@@ -246,7 +247,8 @@ export const cs = {
     how: [
       'Po dávce se mitragynin vstřebá asi za 1–1,5 hodiny. Pak hladina v krvi rychle klesá zhruba 6 hodin a potom už jen pomalu, několik dní.',
       'Játra z něj vyrábějí 7-OH-mitragynin. Je ho málo, ale na opioidní receptory působí asi 10× silněji, takže křivka započítává obě látky podle síly účinku.',
-      'Miligramy = kolik z toho, co sis vzal(a), tělo ještě neodbouralo. Předpokládá se, že se vstřebalo všechno, takže je to spíš horní odhad. Většina je uložená ve tkáních, ne v krvi.',
+      'Gramy kratomu (podle účinku) = jak silně teď kratom působí, převedeno na gramy prášku: dávka 1 g ukáže „1 g“ ve chvíli, kdy působí nejvíc (asi 1,5–2 h po dávce), a pak číslo klesá stejně jako hladina. Není to množství prášku, které máš v těle.',
+      'Miligramy mitragyninu a 7-OH-mitragyninu (malý řádek) = kolik z toho, co sis vzal(a), tělo ještě neodbouralo. Předpokládá se, že se vstřebalo všechno, takže je to spíš horní odhad. Většina je uložená ve tkáních, ne v krvi a skoro nepůsobí.',
       'Hladina neříká, jak se cítíš, ani kdy přijdou absťáky. Nepoužívej ji k načasování další dávky.',
     ],
   },

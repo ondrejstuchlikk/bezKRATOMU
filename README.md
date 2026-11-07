@@ -106,8 +106,10 @@ sends. Lock-screen texts never contain grams.
 - **Kratom in the body** (*Dnes* → *V těle teď*): `src/lib/pk.ts` estimates mitragynine and
   7-OH-mitragynine from your own doses of the last 14 days with a published two-compartment
   pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).
-  It shows the milligrams not yet eliminated and a combined level, where 100 % = the average level at the
-  plan's baseline. The chart shows the last 12, 24 (default) or 48 hours plus a 12-hour projection; the choice
+  The big number is *kratom by effect* (`kratomEffectGrams`): the combined, potency-weighted level expressed
+  in grams of powder, scaled so that a 1 g dose shows 1 g at its peak (~1.7 h). It is not powder in the body;
+  it moves exactly with the level. A small line shows the mg of mitragynine and 7-OH not yet eliminated. *Hladina* is
+  the same combined level in %, where 100 % = the average level at the plan's baseline. The chart shows the last 12, 24 (default) or 48 hours, or 3/5/7 days (*Více* menu), plus a 12-hour projection; the choice
   is kept in `localStorage`. Below it: when the level would fall under the next steps (75/50/25/10 % of
   baseline; without a plan or below 10 %: to half and a tenth of now) if no more is taken. The card runs only
   in the browser and only on your own doses. The opt-in notifications (`0016_level_notifications.sql`) compute

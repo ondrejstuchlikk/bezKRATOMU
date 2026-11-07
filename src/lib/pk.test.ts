@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { levelPct, pkAt, pkSeries, pkTimesBelow, PK_REF_NM_PER_G_DAY, type PkDose } from './pk'
+import { kratomEffectGrams, levelPct, pkAt, pkSeries, pkTimesBelow, PK_PEAK_NM_PER_G, PK_REF_NM_PER_G_DAY, type PkDose } from './pk'
 
 // Independent check: integrate the model ODEs (docs/pk-model/kratom-pk-model.pdf, eqs. 1–3) with RK4
 // from the raw published parameters, and compare with the closed-form constants in pk.ts.
@@ -140,5 +140,14 @@ describe('pkTimesBelow', () => {
     expect(pkTimesBelow([dose(1, 5)], T0, [1])).toEqual([null])
     const a = pkTimesBelow([dose(0, 1)], T0 + H, [50])
     expect(pkTimesBelow([dose(0, 1), dose(3, 4)], T0 + H, [50])).toEqual(a)
+  })
+})
+
+describe('kratomEffectGrams', () => {
+  it('shows a dose as its grams at its peak, then follows the level', () => {
+    expect(PK_PEAK_NM_PER_G).toBeCloseTo(187.68, 1)
+    const peakOf3g = Math.max(...pkSeries([dose(0, 3)], T0, T0 + 4 * H, 1).map((p) => kratomEffectGrams(p.levelNM)))
+    expect(peakOf3g).toBeCloseTo(3, 2)
+    expect(kratomEffectGrams(pkAt([dose(0, 3)], T0 + 6 * H).levelNM)).toBeCloseTo(1.3, 1)
   })
 })

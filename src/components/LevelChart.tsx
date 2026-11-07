@@ -1,7 +1,7 @@
 import { Area, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cs } from '../i18n/cs'
 import { useThemeColors } from '../lib/theme'
-import { pragueTime } from '../lib/time'
+import { formatWeekday, pragueDate, pragueTime } from '../lib/time'
 
 const HOUR = 3_600_000
 
@@ -26,16 +26,19 @@ export default function LevelChart({
   data: LevelChartPoint[]
   markers: number[]
   now: number
-  /** Hours of history shown (12, 24 or 48); the projection is always 12 h. */
+  /** Hours of history shown (12, 24, 48 or 3/5/7 days); the projection is always 12 h. */
   pastH: number
   showPct: boolean
   height: number
 }) {
   const c = useThemeColors()
-  // About six ticks whatever the range: every 4 h (12 h view), 6 h (24 h) or 12 h (48 h).
-  const tickStep = pastH <= 12 ? 4 : pastH <= 24 ? 6 : 12
+  // About six ticks whatever the range: every 4 h (12 h view), 6 h (24 h), 12 h (48 h) or a day (3+ days,
+  // labelled with the weekday).
+  const multiDay = pastH > 48
+  const tickStep = pastH <= 12 ? 4 : pastH <= 24 ? 6 : pastH <= 48 ? 12 : 24
   const ticks: number[] = []
   for (let h = -pastH; h <= 12; h += tickStep) ticks.push(now + h * HOUR)
+  const weekday = (t: number) => formatWeekday(pragueDate(new Date(t)))
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: showPct ? -4 : 8 }}>
@@ -45,7 +48,7 @@ export default function LevelChart({
           scale="time"
           domain={['dataMin', 'dataMax']}
           ticks={ticks}
-          tickFormatter={(t) => (t === now ? cs.level.now : pragueTime(new Date(Number(t))))}
+          tickFormatter={(t) => (t === now ? cs.level.now : multiDay ? weekday(Number(t)) : pragueTime(new Date(Number(t))))}
           stroke={c.muted}
           fontSize={11}
           tickLine={false}
@@ -66,7 +69,7 @@ export default function LevelChart({
         <Tooltip
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}
           labelStyle={{ color: c.muted }}
-          labelFormatter={(t) => pragueTime(new Date(Number(t)))}
+          labelFormatter={(t) => (multiDay ? `${weekday(Number(t))} ` : '') + pragueTime(new Date(Number(t)))}
           formatter={(v) => [showPct ? `${roundPct(Number(v))} %` : '', cs.level.tooltipLevel]}
           separator=": "
           filterNull

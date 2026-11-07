@@ -5,6 +5,13 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-07
 
+- **The *V těle teď* card now shows grams of kratom instead of milligrams of mitragynine and 7-OH.**
+  The big number is "kratomu (podle účinku)": how strongly kratom acts right now, converted to grams of
+  powder. A 3 g dose shows about 3 g when it acts the most (1.5–2 hours later) and then the number falls
+  together with the *Hladina* %. It is not the amount of powder in your body. The mitragynine and 7-OH still in
+  the body (mg) are now a small line below it. No migration needed.
+- **The *V těle teď* chart can show up to a week.** Next to 12 h / 24 h / 48 h there's a new *Více* button
+  that opens 3 dny, 5 dní and 7 dní. Longer views label the days (po, út, …). No migration needed.
 - **New, optional notifications about the *V těle teď* estimate** (*Nastavení → Upozornění →
   Odhad v těle*, off by default). In the morning (8–10 h) a short comparison: "Včera byl nejvyšší odhad
   v těle o 12 % nižší než předevčírem". During the day (9–22 h, at most once a day): when the estimated

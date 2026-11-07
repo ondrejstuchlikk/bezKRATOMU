@@ -110,3 +110,18 @@ export function pkTimesBelow(doses: readonly PkDose[], from: number, thresholdsN
   }
   return out
 }
+
+/** Peak of the combined index after 1 g of powder (nM, about 1.7 h after the dose); found numerically once. */
+export const PK_PEAK_NM_PER_G = (() => {
+  let best = 0
+  for (let i = 0; i <= 6000; i++) best = Math.max(best, unitResponse(LEVEL_NM_PER_G, i / 1000))
+  return best
+})()
+
+/**
+ * "Kratom by effect": the combined level expressed in grams of powder, scaled so that a single 1 g dose shows
+ * 1 g at its peak. Not an amount of powder in the body – it follows the level (and the % line) exactly.
+ */
+export function kratomEffectGrams(levelNM: number): number {
+  return levelNM / PK_PEAK_NM_PER_G
+}

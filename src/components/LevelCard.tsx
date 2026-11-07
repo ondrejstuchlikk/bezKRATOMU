@@ -1,10 +1,12 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useMyDoses } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { levelPct, pkAt, pkSeries, pkTimesBelow, PK_MEMORY_DAYS, PK_REF_NM_PER_G_DAY } from '../lib/pk'
+import { kratomEffectGrams, levelPct, pkAt, pkSeries, pkTimesBelow, PK_MEMORY_DAYS, PK_REF_NM_PER_G_DAY } from '../lib/pk'
 import { addDays, formatWeekdayDate, pragueDate, pragueTime, type ISODate } from '../lib/time'
 import { formatNumber } from '../lib/units'
-import { Card, Segmented } from './ui'
+import { DAY_OPTIONS, HOUR_OPTIONS, type PastHours } from '../lib/levelRange'
+import { LevelRangePicker } from './LevelRangePicker'
+import { Card } from './ui'
 
 // Recharts is big; keep it out of the first page load (like the Graf page).
 const LevelChart = lazy(() => import('./LevelChart'))
@@ -13,8 +15,7 @@ const CHART_HEIGHT = 150
 const HOUR = 3_600_000
 const FUTURE_H = 12
 
-type PastHours = 12 | 24 | 48
-const PAST_OPTIONS: PastHours[] = [12, 24, 48]
+const PAST_OPTIONS: PastHours[] = [...HOUR_OPTIONS, ...DAY_OPTIONS]
 const DEFAULT_PAST_H: PastHours = 24
 const RANGE_KEY = 'levelRangeH'
 /** Projection thresholds, % of the baseline level (the same steps as the milestone notifications). */
@@ -42,6 +43,12 @@ function savePastHours(h: PastHours) {
 /** "98", "5,2", "0,4" – whole mg from 10 up, one decimal below. */
 function formatMg(mg: number): string {
   return formatNumber(mg >= 10 ? Math.round(mg) : Math.round(mg * 10) / 10)
+}
+
+/** "1,3", "12,5"; "< 0,1" for tiny non-zero amounts – the estimate isn't more precise than that. */
+function formatKratomG(g: number): string {
+  if (g > 0 && g < 0.05) return '< 0,1'
+  return formatNumber(Math.round(g * 10) / 10)
 }
 
 /** Rounded to 5 %, as the model is only a rough estimate. */
@@ -82,7 +89,8 @@ function projection(doses: Parameters<typeof pkTimesBelow>[0], from: number, cur
  * Only ever shown for yourself: other users' dose times are private.
  */
 export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date; baselineG: number | null }) {
-  const doses = useMyDoses(addDays(today, -PK_MEMORY_DAYS), today)
+  // The longest view (7 days) needs the doses of the 14 days before its start too.
+  const doses = useMyDoses(addDays(today, -(PK_MEMORY_DAYS + 7)), today)
   const [pastH, setPastH] = useState<PastHours>(readPastHours)
   // Recompute once a minute, not on every render.
   const minute = Math.floor(now.getTime() / 60_000) * 60_000
@@ -93,7 +101,7 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
     const current = pkAt(list, minute)
     const pastDoses = list.filter((d) => new Date(d.takenAt).getTime() <= minute)
     const toY = (levelNM: number) => levelPct(levelNM, baselineG) ?? levelNM
-    const past = pkSeries(pastDoses, minute - pastH * HOUR, minute, 10)
+    const past = pkSeries(pastDoses, minute - pastH * HOUR, minute, pastH > 48 ? 30 : 10)
     // Projection: only doses that already happened ("if you take nothing more").
     const future = pkSeries(pastDoses, minute, minute + FUTURE_H * HOUR, 10)
     const data = [
@@ -124,14 +132,11 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
               <div className="font-display text-4xl font-semibold tabular-nums">
-                ≈ {formatMg(model.current.mgMG)}
-                <span className="ml-1 text-xl text-muted">mg</span>
+                ≈ {formatKratomG(kratomEffectGrams(model.current.levelNM))}
+                <span className="ml-1 text-xl text-muted">g</span>
               </div>
-              <div className="text-sm text-muted">{cs.level.mitragynine}</div>
-              <div className="mt-1 text-sm">
-                <span className="font-semibold tabular-nums">≈ {formatMg(model.current.mgOH)} mg</span>{' '}
-                <span className="text-muted">{cs.level.sevenOh}</span>
-              </div>
+              <div className="text-sm text-muted">{cs.level.kratom}</div>
+              <div className="mt-1 text-xs text-muted tabular-nums">{cs.level.alkaloidsMg(formatMg(model.current.mgMG), formatMg(model.current.mgOH))}</div>
             </div>
             {showPct && (
               <div className="text-right">
@@ -144,19 +149,19 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
             )}
           </div>
 
-          <div aria-hidden="true">
-            <Segmented
-              className="mb-2"
+          <div>
+            <LevelRangePicker
               value={pastH}
-              options={PAST_OPTIONS.map((h) => ({ value: h, label: cs.level.range(h) }))}
               onChange={(h) => {
                 setPastH(h)
                 savePastHours(h)
               }}
             />
-            <Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}>
-              <LevelChart data={model.data} markers={model.markers} now={minute} pastH={pastH} showPct={showPct} height={CHART_HEIGHT} />
-            </Suspense>
+            <div aria-hidden="true">
+              <Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}>
+                <LevelChart data={model.data} markers={model.markers} now={minute} pastH={pastH} showPct={showPct} height={CHART_HEIGHT} />
+              </Suspense>
+            </div>
             <div className="mt-1 flex justify-center gap-4 text-xs text-muted">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-4 rounded bg-accent" /> {cs.level.legendPast(pastH)}
