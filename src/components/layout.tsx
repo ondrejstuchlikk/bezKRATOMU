@@ -3,8 +3,11 @@ import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { backend } from '../api'
 import { useSession } from '../auth/SessionProvider'
 import { useActivePlan, useOnline } from '../hooks/queries'
+import { SubstanceProvider } from '../hooks/substance'
 import { cs } from '../i18n/cs'
 import { ChartIcon, GroupIcon, SettingsIcon, TodayIcon } from './icons'
+import { SubstancesIntro } from './SubstancesIntro'
+import { SubstanceSwitcher } from './SubstanceSwitcher'
 import { cx, ErrorState, Loading } from './ui'
 
 const ACK_KEY = 'safetyAck'
@@ -81,14 +84,21 @@ function BottomNav() {
 }
 
 export function AppShell() {
+  const { pathname } = useLocation()
+  // The switcher belongs to the tabs; deeper pages (plan, profiles) are about kratom.
+  const onTab = NAV.some((n) => n.to === pathname)
   return (
-    <div className="min-h-dvh pb-24">
-      <Banners />
-      <main className="mx-auto max-w-md px-4 pt-6 pb-6">
-        <Outlet />
-      </main>
-      <BottomNav />
-    </div>
+    <SubstanceProvider>
+      <div className="min-h-dvh pb-24">
+        <Banners />
+        <main className="mx-auto max-w-md px-4 pt-6 pb-6">
+          {onTab && <SubstanceSwitcher />}
+          <Outlet />
+        </main>
+        <BottomNav />
+        <SubstancesIntro />
+      </div>
+    </SubstanceProvider>
   )
 }
 

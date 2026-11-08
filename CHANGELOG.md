@@ -3,6 +3,18 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-08
+
+- **You can now track caffeine next to kratom.** After the update, a window offers to turn it on (once per
+  account); it can also be switched in *Nastavení → Sledované látky*. Once on, a button at the top of the
+  screen (*🌿 Kratom ▾*) switches the Dnes, Graf, Skupina and Nastavení tabs between kratom and caffeine.
+  For caffeine: today's total in mg, time since the last one, entries for today and the last 7 days
+  (editable like kratom), and on Graf the mg per day, averages, the highest day, time between entries and
+  the time of day. Log it by picking a drink (*Velký energeťák* 150 mg and *Malý energeťák* 75 mg to start,
+  add your own with *+ Nový nápoj* or in Nastavení, e.g. 1,5 ×) or type the mg. No plan or limit, and nobody
+  else sees it yet — Skupina stays kratom-only. Kratom works exactly as before.
+  Migration: `0017_substances.sql` (run it **before** this version goes live, or the app shows an error).
+
 ## 2026-11-07
 
 - **The *V těle teď* card now shows grams of kratom instead of milligrams of mitragynine and 7-OH.**

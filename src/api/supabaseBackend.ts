@@ -2,6 +2,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import type { Curve, Preset } from '../lib/plan'
 import type { ISODate } from '../lib/time'
 import type { InputUnit } from '../lib/units'
+import type { IntakeSubstance } from '../lib/substances'
 import { nicknameToEmail } from '../lib/nickname'
 import {
   AppError,
@@ -15,6 +16,9 @@ import {
   type FeedEvent,
   type FeedEventType,
   type GroupMemberToday,
+  type Intake,
+  type IntakeInput,
+  type IntakePreset,
   type ReactionEmoji,
   type SessionUser,
   type UserStats,
@@ -27,7 +31,7 @@ interface ErrorLike {
   name?: string
 }
 
-const SERVER_CODES = ['already_paused', 'plan_finished', 'doses_exist', 'not_paused', 'no_active_plan'] as const
+const SERVER_CODES = ['already_paused', 'plan_finished', 'doses_exist', 'too_many_presets', 'not_paused', 'no_active_plan'] as const
 
 function toAppError(error: ErrorLike): AppError {
   const message = error.message ?? ''
@@ -125,6 +129,40 @@ function doseRow(input: DoseInput) {
   }
 }
 
+function mapIntake(r: Row): Intake {
+  return {
+    id: r.id as string,
+    substance: r.substance as IntakeSubstance,
+    takenAt: r.taken_at as string,
+    localDate: r.local_date as ISODate,
+    amount: Number(r.amount),
+    presetName: (r.preset_name as string | null) ?? null,
+    presetCount: num(r.preset_count),
+  }
+}
+
+function mapPreset(r: Row): IntakePreset {
+  return {
+    id: r.id as string,
+    substance: r.substance as IntakeSubstance,
+    name: r.name as string,
+    amountMg: Number(r.amount_mg),
+    sortOrder: Number(r.sort_order),
+  }
+}
+
+function intakeRow(input: IntakeInput) {
+  return {
+    taken_at: input.takenAt.toISOString(),
+    amount: input.amount,
+    preset_name: input.presetName,
+    preset_count: input.presetCount,
+  }
+}
+
+/** Supabase returns at most 1000 rows per request. */
+const PAGE = 1000
+
 const relationName = (v: unknown) => {
   const rel = Array.isArray(v) ? v[0] : v
   return ((rel as Row | null)?.nickname as string | undefined) ?? '?'
@@ -179,7 +217,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const settings = check(
         await sb
           .from('user_settings')
-          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level')
+          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level, track_caffeine, substances_intro_seen')
           .eq('user_id', id)
           .single(),
       ) as Row
@@ -191,6 +229,8 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         reminderHour: num(settings.reminder_hour),
         notifySocial: Boolean(settings.notify_social),
         notifyLevel: Boolean(settings.notify_level),
+        trackCaffeine: Boolean(settings.track_caffeine),
+        substancesIntroSeen: Number(settings.substances_intro_seen ?? 0),
       }
     },
 
@@ -205,6 +245,8 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       if (patch.reminderHour !== undefined) settings.reminder_hour = patch.reminderHour
       if (patch.notifySocial !== undefined) settings.notify_social = patch.notifySocial
       if (patch.notifyLevel !== undefined) settings.notify_level = patch.notifyLevel
+      if (patch.trackCaffeine !== undefined) settings.track_caffeine = patch.trackCaffeine
+      if (patch.substancesIntroSeen !== undefined) settings.substances_intro_seen = patch.substancesIntroSeen
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))
@@ -310,6 +352,79 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         const id = await uid()
         check(await sb.from('zero_days').delete().eq('user_id', id).eq('date', date))
       }
+    },
+
+    async listMyIntakes(substance, from, to) {
+      const id = await uid()
+      const rows: Row[] = []
+      for (let offset = 0; ; offset += PAGE) {
+        const page = check(
+          await sb
+            .from('intakes')
+            .select('*')
+            .eq('user_id', id)
+            .eq('substance', substance)
+            .gte('local_date', from)
+            .lte('local_date', to)
+            .order('taken_at')
+            .order('id')
+            .range(offset, offset + PAGE - 1),
+        ) as Row[]
+        rows.push(...page)
+        if (page.length < PAGE) break
+      }
+      return rows.map(mapIntake)
+    },
+
+    async addIntake(input) {
+      check(await sb.from('intakes').insert({ substance: input.substance, ...intakeRow(input) }))
+    },
+
+    async updateIntake(id, input) {
+      const rows = check(await sb.from('intakes').update(intakeRow(input)).eq('id', id).select('id')) as Row[]
+      if (!rows.length) throw new AppError('edit_window_closed')
+    },
+
+    async deleteIntake(id) {
+      const rows = check(await sb.from('intakes').delete().eq('id', id).select('id')) as Row[]
+      if (!rows.length) throw new AppError('edit_window_closed')
+    },
+
+    async listPresets(substance) {
+      const id = await uid()
+      const rows = check(
+        await sb
+          .from('intake_presets')
+          .select('*')
+          .eq('user_id', id)
+          .eq('substance', substance)
+          .order('sort_order')
+          .order('created_at'),
+      ) as Row[]
+      return rows.map(mapPreset)
+    },
+
+    async addPreset(substance, input) {
+      const id = await uid()
+      const last = check(
+        await sb.from('intake_presets').select('sort_order').eq('user_id', id).order('sort_order', { ascending: false }).limit(1),
+      ) as Row[]
+      const row = check(
+        await sb
+          .from('intake_presets')
+          .insert({ substance, name: input.name, amount_mg: input.amountMg, sort_order: (Number(last[0]?.sort_order) || 0) + 1 })
+          .select('*')
+          .single(),
+      ) as Row
+      return mapPreset(row)
+    },
+
+    async updatePreset(id, input) {
+      check(await sb.from('intake_presets').update({ name: input.name, amount_mg: input.amountMg }).eq('id', id))
+    },
+
+    async deletePreset(id) {
+      check(await sb.from('intake_presets').delete().eq('id', id))
     },
 
     async getUserDays(userId, from, to) {

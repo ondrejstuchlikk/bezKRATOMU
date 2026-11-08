@@ -9,6 +9,7 @@ import { slugifyNickname } from '../lib/nickname'
 import { buildPlanDays, customPlanParams, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
 import { addDays, pragueDate, pragueLocalToInstant, pragueToday, type ISODate } from '../lib/time'
 import { gramsToCg, round2 } from '../lib/units'
+import { MAX_CAFFEINE_MG, MAX_PRESET_COUNT, MAX_PRESET_MG, MAX_PRESET_NAME, round1, type IntakeSubstance } from '../lib/substances'
 import {
   AppError,
   REACTION_EMOJIS,
@@ -19,6 +20,10 @@ import {
   type DoseInput,
   type FeedEvent,
   type GroupMemberToday,
+  type Intake,
+  type IntakeInput,
+  type IntakePreset,
+  type IntakePresetInput,
   type ReactionEmoji,
   type SessionUser,
 } from './types'
@@ -38,6 +43,10 @@ interface DemoUser {
   reminderHour?: number | null
   notifySocial?: boolean
   notifyLevel?: boolean
+  trackCaffeine?: boolean
+  substancesIntroSeen?: number
+  /** Default caffeine presets were created (mirrors private.seed_intake_presets). */
+  presetsSeeded?: boolean
   /** Simulated friend: doses are generated instead of stored. */
   bot: { seed: number; missRate: number; overRate: number; usesTeaspoon: boolean } | null
 }
@@ -56,6 +65,15 @@ interface DemoPause extends PauseRecord {
 
 interface DemoDose extends Dose {
   userId: string
+}
+
+interface DemoIntake extends Intake {
+  userId: string
+}
+
+interface DemoPreset extends IntakePreset {
+  userId: string
+  createdAt: string
 }
 
 interface DemoReaction {
@@ -84,6 +102,9 @@ interface DemoState {
   zeroDays: { userId: string; date: ISODate }[]
   reactions: DemoReaction[]
   comments: DemoComment[]
+  /** Optional because demo data saved by older versions doesn't have them. */
+  intakes?: DemoIntake[]
+  presets?: DemoPreset[]
   sessionUserId: string | null
 }
 
@@ -271,6 +292,33 @@ function botDoses(user: DemoUser, date: ISODate, limitG: number, now: Date): { d
   return { doses, zeroDay: false }
 }
 
+/** Two weeks of energy drinks for a simulated friend, frozen into stored data at login. */
+function botCaffeine(user: DemoUser, now: Date): DemoIntake[] {
+  const rand = rng(hash(`${user.id}-caffeine`))
+  const today = pragueDate(now)
+  const intakes: DemoIntake[] = []
+  for (let back = 13; back >= 0; back--) {
+    const date = addDays(today, -back)
+    const count = Math.floor(rand() * 4)
+    ;['08:10', '13:40', '17:20'].slice(0, count).forEach((slot, i) => {
+      const takenAt = pragueLocalToInstant(date, slot)
+      if (takenAt > now) return
+      const big = rand() < 0.6
+      intakes.push({
+        id: `${user.id}-caf-${date}-${i}`,
+        userId: user.id,
+        substance: 'caffeine',
+        takenAt: takenAt.toISOString(),
+        localDate: date,
+        amount: big ? 150 : 75,
+        presetName: big ? 'Velký energeťák' : 'Malý energeťák',
+        presetCount: 1,
+      })
+    })
+  }
+  return intakes
+}
+
 // ---------------------------------------------------------------------------
 // Backend
 // ---------------------------------------------------------------------------
@@ -292,7 +340,25 @@ const delay = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export function createDemoBackend(): Backend {
   let state = load()
+  state.intakes ??= []
+  state.presets ??= []
+  const intakes = () => state.intakes!
+  const presets = () => state.presets!
   const listeners = new Set<(user: SessionUser | null) => void>()
+
+  /** Every account starts with the default caffeine presets (like the server). */
+  function seedPresets() {
+    for (const u of state.users) {
+      if (u.presetsSeeded) continue
+      u.presetsSeeded = true
+      const createdAt = new Date().toISOString()
+      presets().push(
+        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Velký energeťák', amountMg: 150, sortOrder: 1, createdAt },
+        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Malý energeťák', amountMg: 75, sortOrder: 2, createdAt },
+      )
+    }
+  }
+  seedPresets()
 
   function save() {
     try {
@@ -444,6 +510,45 @@ export function createDemoBackend(): Backend {
     }
   }
 
+  function intakeFromInput(input: IntakeInput) {
+    const localDate = pragueDate(input.takenAt)
+    checkWindow(localDate)
+    if (!(input.amount > 0 && input.amount <= MAX_CAFFEINE_MG)) throw new AppError('unknown', 'invalid_amount')
+    if ((input.presetName === null) !== (input.presetCount === null)) throw new AppError('unknown', 'invalid_preset')
+    if (input.presetCount !== null && !(input.presetCount > 0 && input.presetCount <= MAX_PRESET_COUNT)) {
+      throw new AppError('unknown', 'invalid_preset_count')
+    }
+    return {
+      takenAt: input.takenAt.toISOString(),
+      localDate,
+      amount: round1(input.amount),
+      presetName: input.presetName?.slice(0, MAX_PRESET_NAME) ?? null,
+      presetCount: input.presetCount === null ? null : round1(input.presetCount),
+    }
+  }
+
+  function ownIntake(id: string): DemoIntake {
+    const existing = intakes().find((i) => i.id === id && i.userId === me().id)
+    if (!existing) throw new AppError('unknown', 'intake_not_found')
+    checkWindow(existing.localDate)
+    return existing
+  }
+
+  function presetFields(input: IntakePresetInput) {
+    const name = input.name.trim()
+    if (!name || name.length > MAX_PRESET_NAME) throw new AppError('unknown', 'invalid_name')
+    if (!(input.amountMg > 0 && input.amountMg <= MAX_PRESET_MG)) throw new AppError('unknown', 'invalid_amount')
+    return { name, amountMg: round1(input.amountMg) }
+  }
+
+  function ownPreset(id: string): DemoPreset {
+    const p = presets().find((x) => x.id === id && x.userId === me().id)
+    if (!p) throw new AppError('unknown', 'preset_not_found')
+    return p
+  }
+
+  const toPreset = ({ userId: _u, createdAt: _c, ...p }: DemoPreset): IntakePreset => p
+
   return {
     mode: 'demo',
 
@@ -477,6 +582,7 @@ export function createDemoBackend(): Backend {
         bot: null,
       }
       state.users.push(user)
+      seedPresets()
       state.comments.push({
         id: uid(),
         authorId: 'demo-jana',
@@ -500,6 +606,7 @@ export function createDemoBackend(): Backend {
         const generated = dosesOf(user, planDaysOf(user.id))
         state.doses.push(...generated.doses)
         for (const date of generated.zeroDays) state.zeroDays.push({ userId: user.id, date })
+        intakes().push(...botCaffeine(user, new Date()))
         user.bot = null
       }
       state.sessionUserId = user.id
@@ -524,6 +631,8 @@ export function createDemoBackend(): Backend {
         reminderHour: u.reminderHour ?? null,
         notifySocial: u.notifySocial ?? false,
         notifyLevel: u.notifyLevel ?? false,
+        trackCaffeine: u.trackCaffeine ?? false,
+        substancesIntroSeen: u.substancesIntroSeen ?? 0,
       }
     },
 
@@ -536,6 +645,8 @@ export function createDemoBackend(): Backend {
       if (patch.reminderHour !== undefined) u.reminderHour = patch.reminderHour
       if (patch.notifySocial !== undefined) u.notifySocial = patch.notifySocial
       if (patch.notifyLevel !== undefined) u.notifyLevel = patch.notifyLevel
+      if (patch.trackCaffeine !== undefined) u.trackCaffeine = patch.trackCaffeine
+      if (patch.substancesIntroSeen !== undefined) u.substancesIntroSeen = patch.substancesIntroSeen
       save()
     },
 
@@ -649,6 +760,75 @@ export function createDemoBackend(): Backend {
         if (state.doses.some((d) => d.userId === user.id && d.localDate === date)) throw new AppError('doses_exist')
         state.zeroDays.push({ userId: user.id, date })
       }
+      save()
+    },
+
+    async listMyIntakes(substance: IntakeSubstance, from, to) {
+      await delay(60)
+      const user = me()
+      return intakes()
+        .filter((i) => i.userId === user.id && i.substance === substance && i.localDate >= from && i.localDate <= to)
+        .sort((a, b) => a.takenAt.localeCompare(b.takenAt))
+        .map(({ userId: _userId, ...i }) => i)
+    },
+
+    async addIntake(input) {
+      await delay()
+      const user = me()
+      intakes().push({ id: uid(), userId: user.id, substance: input.substance, ...intakeFromInput(input) })
+      save()
+    },
+
+    async updateIntake(id, input) {
+      await delay()
+      Object.assign(ownIntake(id), intakeFromInput(input))
+      save()
+    },
+
+    async deleteIntake(id) {
+      await delay()
+      const existing = ownIntake(id)
+      state.intakes = intakes().filter((i) => i !== existing)
+      save()
+    },
+
+    async listPresets(substance) {
+      await delay(60)
+      const user = me()
+      return presets()
+        .filter((p) => p.userId === user.id && p.substance === substance)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt))
+        .map(toPreset)
+    },
+
+    async addPreset(substance, input) {
+      await delay()
+      const user = me()
+      const mine = presets().filter((p) => p.userId === user.id)
+      if (mine.length >= 30) throw new AppError('too_many_presets')
+      const preset: DemoPreset = {
+        id: uid(),
+        userId: user.id,
+        substance,
+        ...presetFields(input),
+        sortOrder: Math.max(0, ...mine.map((p) => p.sortOrder)) + 1,
+        createdAt: new Date().toISOString(),
+      }
+      presets().push(preset)
+      save()
+      return toPreset(preset)
+    },
+
+    async updatePreset(id, input) {
+      await delay()
+      Object.assign(ownPreset(id), presetFields(input))
+      save()
+    },
+
+    async deletePreset(id) {
+      await delay()
+      const p = ownPreset(id)
+      state.presets = presets().filter((x) => x !== p)
       save()
     },
 

@@ -287,6 +287,45 @@ update user_settings set notify_level = false where user_id = :'e';
 select public.expect_eq(public.level_claim('2026-10-23 09:00'), '-', 'level: off means off');
 select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
 
+-- ===== Other substances: caffeine intakes and presets (0017) =====
+reset role;
+select public.expect_eq((select string_agg(name || '=' || amount_mg, ',' order by sort_order) from intake_presets where user_id = :'e'),
+  'Velký energeťák=150.0,Malý energeťák=75.0', 'new account gets default caffeine presets');
+set role authenticated;
+select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null
+select public.expect_eq((select count(*)::text from intake_presets), '2', 'only own presets visible');
+insert into intake_presets (substance, name, amount_mg) values ('caffeine', '  Espresso ', 60);
+select public.expect_eq((select name from intake_presets where amount_mg = 60), 'Espresso', 'preset name trimmed');
+select public.expect_error($$insert into intake_presets (user_id, substance, name, amount_mg) values ('$$ || :'e' || $$', 'caffeine', 'X', 10)$$, 'preset for someone else');
+select public.expect_error($$insert into intake_presets (substance, name, amount_mg) values ('caffeine', 'X', 0)$$, 'preset 0 mg');
+with u as (update intake_presets set amount_mg = 1 where user_id = :'e' returning 1) select public.expect_eq(count(*)::text, '0', 'cannot edit others presets') from u;
+with d as (delete from intake_presets where user_id = :'e' returning 1) select public.expect_eq(count(*)::text, '0', 'cannot delete others presets') from d;
+insert into intakes (substance, taken_at, amount, preset_name, preset_count) values ('caffeine', now(), 300, 'Velký energeťák', 2);
+insert into intakes (substance, taken_at, amount) values ('caffeine', now() - interval '7 days', 80);
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('caffeine', (current_date - 8 + time '12:00') at time zone 'Europe/Prague', 80)$$, 'intake 8 days back');
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('caffeine', now() + interval '1 day', 80)$$, 'intake tomorrow');
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('kratom', now(), 80)$$, 'unknown substance');
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('caffeine', now(), 0)$$, 'intake 0 mg');
+select public.expect_error($$insert into intakes (substance, taken_at, amount, preset_name) values ('caffeine', now(), 50, 'X')$$, 'preset name without count');
+select public.expect_error($$insert into intakes (user_id, substance, taken_at, amount) values ('$$ || :'e' || $$', 'caffeine', now(), 80)$$, 'intake for someone else');
+select public.expect_error($$update intakes set taken_at = now() - interval '9 days' where amount = 300$$, 'move intake out of window');
+select public.expect_eq((select local_date::text from intakes where amount = 300), :'today', 'intake local date set by server');
+update user_settings set track_caffeine = true, substances_intro_seen = 1 where user_id = :'a';
+select public.expect_eq((select track_caffeine::text || substances_intro_seen from user_settings), 'true1', 'caffeine settings saved');
+select public.expect_error($$update user_settings set substances_intro_seen = 1000$$, 'intro version out of range');
+reset role;
+insert into intakes (user_id, substance, taken_at, amount) values (:'e', 'caffeine', now(), 95);
+set role authenticated;
+select public.expect_eq((select count(*)::text from intakes), '2', 'only own intakes visible');
+with u as (update intakes set amount = 1 where user_id = :'e' returning 1) select public.expect_eq(count(*)::text, '0', 'cannot edit others intakes') from u;
+with d as (delete from intakes where user_id = :'e' returning 1) select public.expect_eq(count(*)::text, '0', 'cannot delete others intakes') from d;
+reset role;
+-- Old days are locked: an intake 8 days back (inserted by the server) can't be changed.
+insert into intakes (user_id, substance, taken_at, amount) values (:'a', 'caffeine', ((current_date - 9) + time '12:00') at time zone 'Europe/Prague', 40);
+set role authenticated;
+with d as (delete from intakes where amount = 40 returning 1) select public.expect_eq(count(*)::text, '0', 'cannot delete intake older than 7 days') from d;
+reset role;
+
 -- ===== Anonymous =====
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;
@@ -294,4 +333,6 @@ select public.expect_error($$select get_leaderboard()$$, 'anon leaderboard');
 select public.expect_error($$select get_group_today()$$, 'anon group today');
 select public.expect_error($$select * from profiles$$, 'anon read profiles');
 select public.expect_error($$select * from doses$$, 'anon read doses');
+select public.expect_error($$select * from intakes$$, 'anon read intakes');
+select public.expect_error($$select * from intake_presets$$, 'anon read presets');
 reset role;

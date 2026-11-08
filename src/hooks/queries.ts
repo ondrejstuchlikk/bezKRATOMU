@@ -1,7 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { backend } from '../api'
+import { computeIntakeStats } from '../lib/intakeStats'
+import type { IntakeSubstance } from '../lib/substances'
 import { pragueToday, type ISODate } from '../lib/time'
+
+/** Start of "all history" queries. */
+export const ALL_FROM: ISODate = '2000-01-01'
 
 export const keys = {
   settings: ['settings'] as const,
@@ -15,6 +20,8 @@ export const keys = {
   feed: ['feed'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   social: (userId: string, date: ISODate) => ['social', userId, date] as const,
+  intakes: (substance: IntakeSubstance, from: ISODate, to: ISODate) => ['intakes', substance, from, to] as const,
+  presets: (substance: IntakeSubstance) => ['presets', substance] as const,
 }
 
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: () => backend.getMySettings() })
@@ -44,6 +51,25 @@ export const useProfile = (userId: string) =>
 
 export const useDaySocial = (userId: string, date: ISODate) =>
   useQuery({ queryKey: keys.social(userId, date), queryFn: () => backend.getDaySocial(userId, date) })
+
+export const useMyIntakes = (substance: IntakeSubstance, from: ISODate, to: ISODate) =>
+  useQuery({ queryKey: keys.intakes(substance, from, to), queryFn: () => backend.listMyIntakes(substance, from, to) })
+
+export const useIntakePresets = (substance: IntakeSubstance) =>
+  useQuery({ queryKey: keys.presets(substance), queryFn: () => backend.listPresets(substance) })
+
+/** Statistics over all of the user's own entries of a substance (src/lib/intakeStats.ts). */
+export function useIntakeStats(substance: IntakeSubstance, today: ISODate, now: Date) {
+  const all = useMyIntakes(substance, ALL_FROM, today)
+  const stats = useMemo(() => (all.data ? computeIntakeStats(all.data, now) : undefined), [all.data, now])
+  return { ...all, stats }
+}
+
+/** Refreshes everything that depends on entries of non-kratom substances. */
+export function useRefreshIntakes() {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: ['intakes'] })
+}
 
 /** Refreshes everything that depends on logged doses or the plan. */
 export function useRefreshAfterChange() {

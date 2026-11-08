@@ -4,12 +4,12 @@ import { useMe } from '../auth/SessionProvider'
 import { FeelingsChart, PlanVsActualChart, TimeOfDayChart } from '../components/charts'
 import { StatsGrid } from '../components/StatsGrid'
 import { ButtonLink, Card, ErrorState, Loading, PageHeader, Segmented } from '../components/ui'
-import { useActivePlan, useMyDoses, useSettings, useToday, useUserDays, useUserStats } from '../hooks/queries'
+import { ALL_FROM, useActivePlan, useMyDoses, useSettings, useToday, useUserDays, useUserStats } from '../hooks/queries'
+import { useSubstance } from '../hooks/substance'
 import { cs } from '../i18n/cs'
 import { addDays } from '../lib/time'
 import { formatMoney } from '../lib/units'
-
-const ALL_FROM = '2000-01-01'
+import { IntakeChartsPage } from './IntakeChartsPage'
 
 function moneySaved(days: DayResult[], price: number): number {
   return days.reduce(
@@ -19,6 +19,11 @@ function moneySaved(days: DayResult[], price: number): number {
 }
 
 export default function ChartsPage() {
+  const { substance } = useSubstance()
+  return substance === 'kratom' ? <KratomChartsPage /> : <IntakeChartsPage substance={substance} />
+}
+
+function KratomChartsPage() {
   const me = useMe()
   const today = useToday()
   const [range, setRange] = useState<14 | 30 | 0>(14)

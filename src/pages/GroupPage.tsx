@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { backend, type DayResult, type GroupMemberToday, type LeaderboardRow } from '../api'
 import { useMe } from '../auth/SessionProvider'
-import { Card, cx, ErrorState, Loading, PageHeader } from '../components/ui'
+import { Button, Card, cx, ErrorState, Loading, PageHeader } from '../components/ui'
 import { keys, useFeed, useGroupSummary, useGroupToday, useLeaderboard, useToday } from '../hooks/queries'
+import { useSubstance } from '../hooks/substance'
 import { cs } from '../i18n/cs'
 import { addDays, formatShortDate, type ISODate } from '../lib/time'
 import { formatDuration, formatNumber, formatPct } from '../lib/units'
@@ -33,6 +34,25 @@ function display(tab: RankTab, r: LeaderboardRow): string {
 }
 
 export function GroupPage() {
+  const { substance, setSubstance } = useSubstance()
+  if (substance !== 'kratom') {
+    // Other substances aren't shared yet.
+    return (
+      <div className="space-y-4">
+        <PageHeader title={cs.group.title} />
+        <Card className="space-y-4 text-center">
+          <p className="text-muted">{cs.group.onlyKratom(cs.substances.names[substance])}</p>
+          <Button variant="secondary" className="w-full" onClick={() => setSubstance('kratom')}>
+            {cs.group.switchToKratom}
+          </Button>
+        </Card>
+      </div>
+    )
+  }
+  return <KratomGroupPage />
+}
+
+function KratomGroupPage() {
   const [tab, setTab] = useState<Tab>('streak')
 
   return (

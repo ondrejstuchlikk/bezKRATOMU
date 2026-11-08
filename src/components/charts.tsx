@@ -134,7 +134,7 @@ export function PlanVsActualChart({ days, unit }: { days: DayResult[]; unit: 'g'
 }
 
 /** Number of doses by hour of day (Prague time). */
-export function TimeOfDayChart({ doses }: { doses: Dose[] }) {
+export function TimeOfDayChart({ doses, label = cs.chart.timeOfDayHint }: { doses: { takenAt: string }[]; label?: string }) {
   const { c, axis, grid, tooltip } = useChartStyle()
   if (!doses.length) return <ChartEmpty />
   const counts = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }))
@@ -145,8 +145,29 @@ export function TimeOfDayChart({ doses }: { doses: Dose[] }) {
         {grid}
         <XAxis dataKey="hour" {...axis} ticks={[0, 6, 12, 18, 23]} tickFormatter={(h) => `${h}h`} />
         <YAxis {...axis} width={44} />
-        <Tooltip {...tooltip} labelFormatter={(h) => `${h}:00–${h}:59`} formatter={(v) => [v, cs.chart.timeOfDayHint]} />
+        <Tooltip {...tooltip} labelFormatter={(h) => `${h}:00–${h}:59`} formatter={(v) => [v, label]} />
         <Bar dataKey="count" fill={c.accent} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** Total per day as bars (substances without a plan). */
+export function DailyTotalChart({ rows, unit, label }: { rows: { date: ISODate; total: number }[]; unit: string; label: string }) {
+  const { c, axis, grid, tooltip } = useChartStyle()
+  if (!rows.some((r) => r.total > 0)) return <ChartEmpty />
+  return (
+    <ResponsiveContainer width="100%" height={HEIGHT}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+        {grid}
+        <XAxis dataKey="date" {...axis} tickFormatter={formatShortDate} minTickGap={20} />
+        <YAxis {...axis} width={44} />
+        <Tooltip
+          {...tooltip}
+          labelFormatter={(d) => formatShortDate(String(d))}
+          formatter={(v) => [`${formatNumber(Number(v))} ${unit}`, label]}
+        />
+        <Bar dataKey="total" fill={c.accent} fillOpacity={0.7} radius={[6, 6, 0, 0]} maxBarSize={18} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   )

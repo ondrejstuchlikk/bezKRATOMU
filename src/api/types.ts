@@ -4,6 +4,7 @@ import type { DayStatus } from '../lib/scoring'
 import type { ISODate } from '../lib/time'
 import type { PushKeys } from '../lib/push'
 import type { InputUnit } from '../lib/units'
+import type { IntakeSubstance } from '../lib/substances'
 
 export type { DayStatus, FeedEventType }
 
@@ -23,6 +24,10 @@ export interface MySettings {
   notifySocial: boolean
   /** Morning recap and milestones about my own body-level estimate (src/lib/pk.ts). */
   notifyLevel: boolean
+  /** Shows caffeine in the substance switcher. */
+  trackCaffeine: boolean
+  /** Latest version of the "new substances" window the user has closed (SUBSTANCES_INTRO_VERSION). */
+  substancesIntroSeen: number
 }
 
 export interface ActivePlan {
@@ -66,6 +71,40 @@ export interface DoseInput {
   inputAmount: number
   feeling: number | null
   note: string | null
+}
+
+/** One entry of a substance other than kratom (public.intakes). Caffeine: amount in mg. */
+export interface Intake {
+  id: string
+  substance: IntakeSubstance
+  takenAt: string
+  localDate: ISODate
+  amount: number
+  /** Name of the preset used (a copy, so later preset edits don't change it); null = amount typed in. */
+  presetName: string | null
+  presetCount: number | null
+}
+
+export interface IntakeInput {
+  substance: IntakeSubstance
+  takenAt: Date
+  amount: number
+  presetName: string | null
+  presetCount: number | null
+}
+
+/** A user's own drink for quick logging, like the teaspoon for kratom (public.intake_presets). */
+export interface IntakePreset {
+  id: string
+  substance: IntakeSubstance
+  name: string
+  amountMg: number
+  sortOrder: number
+}
+
+export interface IntakePresetInput {
+  name: string
+  amountMg: number
 }
 
 export interface DayResult {
@@ -180,6 +219,7 @@ export type AppErrorCode =
   | 'doses_exist'
   | 'already_paused'
   | 'plan_finished'
+  | 'too_many_presets'
   | 'unknown'
 
 export class AppError extends Error {
@@ -219,6 +259,17 @@ export interface Backend {
   updateDose(id: string, input: DoseInput): Promise<void>
   deleteDose(id: string): Promise<void>
   setZeroDay(date: ISODate, on: boolean): Promise<void>
+
+  /** Own entries of a non-kratom substance, sorted by time. */
+  listMyIntakes(substance: IntakeSubstance, from: ISODate, to: ISODate): Promise<Intake[]>
+  addIntake(input: IntakeInput): Promise<void>
+  /** The substance of an existing entry never changes. */
+  updateIntake(id: string, input: IntakeInput): Promise<void>
+  deleteIntake(id: string): Promise<void>
+  listPresets(substance: IntakeSubstance): Promise<IntakePreset[]>
+  addPreset(substance: IntakeSubstance, input: IntakePresetInput): Promise<IntakePreset>
+  updatePreset(id: string, input: IntakePresetInput): Promise<void>
+  deletePreset(id: string): Promise<void>
 
   getUserDays(userId: string, from: ISODate, to: ISODate): Promise<DayResult[]>
   getUserStats(userId: string): Promise<UserStats>

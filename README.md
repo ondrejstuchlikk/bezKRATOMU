@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0016`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0017`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -103,6 +103,16 @@ sends. Lock-screen texts never contain grams.
   produce fake records. The record, the 5-day average and the all-time average are visible to the group;
   the time of the latest dose only to its owner.
 - **Time zone**: all days are calendar days in `Europe/Prague` (DST-safe).
+- **Other substances** (`0017_substances.sql`): besides kratom, users can track caffeine (*Nastavení →
+  Sledované látky*, off by default; a one-time window after the update offers it, remembered per account in
+  `user_settings.substances_intro_seen`). A pill at the top of the tabs (*🌿 Kratom ▾*) switches Dnes, Graf,
+  Skupina and Nastavení between substances; the choice is kept per device. Caffeine is plain tracking — no plan,
+  no scoring — stored in `public.intakes` (mg) with the user's own drinks in `public.intake_presets`
+  (every account starts with *Velký energeťák* 150 mg and *Malý energeťák* 75 mg; an entry keeps a copy of the
+  drink's name, so editing a drink doesn't change history). Same 7-day edit window as doses. Only the owner can
+  read their entries; Skupina says it's kratom-only for now. Statistics (daily totals, averages, time between
+  entries) are computed in the browser by `src/lib/intakeStats.ts`; a day without entries counts as 0 mg.
+  When sharing comes, they must move into security-definer RPCs like the kratom ones.
 - **Kratom in the body** (*Dnes* → *V těle teď*): `src/lib/pk.ts` estimates mitragynine and
   7-OH-mitragynine from your own doses of the last 14 days with a published two-compartment
   pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).

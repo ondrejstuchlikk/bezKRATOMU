@@ -46,6 +46,11 @@ export function formatGrams(value: number): string {
   return `${gramFormat.format(value)} g`
 }
 
+/** "150 mg" */
+export function formatMg(value: number): string {
+  return `${oneDecimal.format(value)} mg`
+}
+
 /** "42 %" */
 export function formatPct(value: number): string {
   return `${oneDecimal.format(value)} %`

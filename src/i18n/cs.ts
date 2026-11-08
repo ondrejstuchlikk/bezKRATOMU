@@ -3,6 +3,7 @@
 import type { AppErrorCode, FeedEventType } from '../api/types'
 import type { Preset } from '../lib/plan'
 import type { DayStatus } from '../lib/scoring'
+import type { Substance } from '../lib/substances'
 import { formatGrams, formatNumber } from '../lib/units'
 
 /** Czech plural: 1 den, 2–4 dny, 5+ dní. */
@@ -47,6 +48,7 @@ export const cs = {
     doses_exist: 'Na tento den už máš zapsanou dávku.',
     already_paused: 'Plán už je pozastavený.',
     plan_finished: 'Plán už je u konce, není co pozastavit.',
+    too_many_presets: 'Víc než 30 nápojů si uložit nejde. Nějaký smaž.',
     unknown: 'Něco se pokazilo. Zkus to prosím znovu.',
   } satisfies Record<AppErrorCode, string>,
 
@@ -55,6 +57,84 @@ export const cs = {
     chart: 'Graf',
     group: 'Skupina',
     settings: 'Nastavení',
+  },
+
+  substances: {
+    names: { kratom: 'Kratom', caffeine: 'Kofein' } satisfies Record<Substance, string>,
+    emoji: { kratom: '🌿', caffeine: '☕' } satisfies Record<Substance, string>,
+    switcherLabel: 'Sledovaná látka',
+    manage: 'Spravovat látky…',
+  },
+
+  substancesIntro: {
+    title: 'Novinka: sledování kofeinu',
+    body: [
+      'Kromě kratomu si teď můžeš zapisovat i kofein – energeťáky, kávu a cokoli dalšího.',
+      'Uvidíš, kolik ho denně máš, kdy si ho dáváš a jak dlouho vydržíš bez něj.',
+      'Kofein zatím vidíš jen ty, nikdo ve skupině.',
+    ],
+    enable: '☕ Zapnout kofein',
+    later: 'Teď ne',
+    hint: 'Kdykoli to změníš v Nastavení → Sledované látky. Mezi látkami pak přepínáš tlačítkem nahoře.',
+  },
+
+  caffeine: {
+    todayTotal: 'Dnes zatím',
+    entries: (n: number) => `${n} ${plural(n, 'záznam', 'záznamy', 'záznamů')}`,
+    avg7d: (mg: string) => `Průměr posledních 7 dní: ${mg} denně`,
+    add: 'Přidat kofein',
+    list: 'Dnešní kofein',
+    none: 'Dnes zatím nic.',
+    sinceLast: 'Od posledního kofeinu',
+    sincePrevious: (duration: string) => `${duration} od předchozího`,
+    lastDays: 'Posledních 7 dní',
+    lastDaysHint: 'Vyber den, který chceš zkontrolovat nebo doplnit.',
+    dayTotal: (mg: string, n: number) => `${mg} · ${n} ${plural(n, 'záznam', 'záznamy', 'záznamů')}`,
+    addToDay: 'Doplnit kofein',
+    privateNote: 'Kofein vidíš jen ty.',
+    sheet: {
+      addTitle: 'Kofein',
+      editTitle: 'Upravit kofein',
+      what: 'Co sis dal(a)?',
+      custom: 'Vlastní množství',
+      customHint: 'v miligramech kofeinu',
+      count: 'Kolik',
+      countSuffix: '×',
+      mg: 'mg',
+      equals: (mg: string) => `= ${mg} kofeinu`,
+      invalidAmount: 'Zadej množství větší než 0 (nejvýš 2000 mg).',
+      newPreset: '+ Nový nápoj',
+      save: 'Uložit',
+      delete: 'Smazat záznam',
+      confirmDelete: 'Opravdu smazat tento záznam?',
+    },
+    preset: {
+      name: 'Název',
+      namePlaceholder: 'např. Káva z automatu',
+      mg: 'Kofein (mg)',
+      save: 'Uložit',
+      cancel: 'Zrušit',
+      delete: 'Smazat',
+      confirmDelete: (name: string) => `Smazat nápoj „${name}“? Už zapsané záznamy zůstanou.`,
+      invalid: 'Zadej název a množství od 0,1 do 1000 mg.',
+    },
+    chart: {
+      daily: 'Kofein po dnech',
+      dailyTooltip: 'Kofein',
+      timeOfDay: 'Kdy si kofein dáváš',
+      timeOfDayHint: 'Počet záznamů podle hodiny',
+      empty: 'Zatím nemáš zapsaný žádný kofein.',
+    },
+    stats: {
+      today: 'Dnes',
+      avg7d: 'Průměr za den (7 dní)',
+      avgAll: 'Průměr za den (celkem)',
+      maxDay: 'Nejvíc za den',
+      recordGap: 'Nejdelší čas bez kofeinu',
+      avgGap5d: 'Průměrný odstup (5 dní)',
+      avgGapAll: 'Průměrný odstup (celkem)',
+      emptyDaysNote: 'Den bez záznamu se počítá jako den bez kofeinu.',
+    },
   },
 
   status: {
@@ -310,6 +390,8 @@ export const cs = {
 
   group: {
     title: 'Skupina',
+    onlyKratom: (name: string) => `Skupina je zatím jen pro kratom. ${name} vidíš jen ty.`,
+    switchToKratom: '🌿 Přepnout na kratom',
     tabs: {
       today: 'Dnes',
       streak: 'Aktuální série',
@@ -369,6 +451,12 @@ export const cs = {
 
   settings: {
     title: 'Nastavení',
+    substances: 'Sledované látky',
+    substancesHint: 'Kratom sleduješ vždy. Další látky se objeví v přepínači nahoře.',
+    caffeinePresets: 'Moje nápoje',
+    caffeinePresetsHint: 'Kolik kofeinu má nápoj, který piješ. Pak ho zapíšeš jedním klepnutím, jako lžičku u kratomu. Úprava nezmění už zapsané záznamy.',
+    addPreset: '+ Přidat nápoj',
+    noPresets: 'Zatím žádný nápoj.',
     loggedAs: 'Přihlášen(a) jako',
     teaspoon: 'Moje lžička',
     teaspoonHint: 'Kolik gramů má tvoje lžička? Pak můžeš zapisovat v lžičkách.',

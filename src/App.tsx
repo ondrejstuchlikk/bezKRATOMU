@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppError } from './api'
 import { SessionProvider } from './auth/SessionProvider'
-import { AppShell, GuestOnly, RequireAuth, RequirePlan, RequireSafetyAck } from './components/layout'
+import { AppShell, GuestOnly, RequireAuth, RequireSafetyAck } from './components/layout'
 import { Loading } from './components/ui'
 import { DayPage } from './pages/DayPage'
 import { GroupPage } from './pages/GroupPage'
@@ -11,7 +11,7 @@ import { LoginPage, RegisterPage } from './pages/AuthPages'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SafetyPage, WelcomePage } from './pages/SafetyPages'
 import { SettingsPage } from './pages/SettingsPage'
-import { TodayPage } from './pages/TodayPage'
+import { TodayRoute } from './pages/TodayRoute'
 
 // Chart-heavy pages are loaded on demand to keep the first load small.
 const ChartsPage = lazy(() => import('./pages/ChartsPage'))
@@ -46,14 +46,7 @@ export function App() {
                 <Route element={<RequireAuth />}>
                   <Route path="/plan/novy" element={<PlanWizardPage />} />
                   <Route element={<AppShell />}>
-                    <Route
-                      index
-                      element={
-                        <RequirePlan>
-                          <TodayPage />
-                        </RequirePlan>
-                      }
-                    />
+                    <Route index element={<TodayRoute />} />
                     <Route path="/graf" element={<ChartsPage />} />
                     <Route path="/zebricek" element={<Navigate to="/skupina" replace />} />
                     <Route path="/skupina" element={<GroupPage />} />
