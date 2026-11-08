@@ -173,6 +173,44 @@ export function DailyTotalChart({ rows, unit, label }: { rows: { date: ISODate; 
   )
 }
 
+/** Pieces per day, one stacked bar segment per nicotine form. */
+export function CountsByFormChart({
+  rows,
+  series,
+}: {
+  rows: Record<string, number | string>[]
+  series: { key: string; label: string; tone: 'accent' | 'warn' }[]
+}) {
+  const { c, axis, grid, tooltip } = useChartStyle()
+  if (!rows.some((r) => series.some((s) => Number(r[s.key]) > 0))) return <ChartEmpty />
+  return (
+    <ResponsiveContainer width="100%" height={HEIGHT}>
+      <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+        {grid}
+        <XAxis dataKey="date" {...axis} tickFormatter={formatShortDate} minTickGap={20} />
+        <YAxis {...axis} width={44} allowDecimals={false} />
+        <Tooltip
+          {...tooltip}
+          labelFormatter={(d) => formatShortDate(String(d))}
+          formatter={(v, name) => [formatNumber(Number(v)), series.find((s) => s.key === name)?.label ?? String(name)]}
+        />
+        {series.map((s, i) => (
+          <Bar
+            key={s.key}
+            dataKey={s.key}
+            stackId="forms"
+            fill={c[s.tone]}
+            fillOpacity={0.75}
+            radius={i === series.length - 1 ? [6, 6, 0, 0] : 0}
+            maxBarSize={18}
+            isAnimationActive={false}
+          />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 /** Daily intake next to the average feeling of that day. */
 export function FeelingsChart({ days, doses, unit }: { days: DayResult[]; doses: Dose[]; unit: 'g' | 'pct' }) {
   const { c, axis, grid, tooltip } = useChartStyle()

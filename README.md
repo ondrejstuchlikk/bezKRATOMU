@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0017`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0018`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -113,6 +113,13 @@ sends. Lock-screen texts never contain grams.
   read their entries; Skupina says it's kratom-only for now. Statistics (daily totals, averages, time between
   entries) are computed in the browser by `src/lib/intakeStats.ts`; a day without entries counts as 0 mg.
   When sharing comes, they must move into security-definer RPCs like the kratom ones.
+- **Nicotine** (`0018_nicotine.sql`): cigarettes and snus (*sibiř*), each switched on separately; nicotine
+  shows in the switcher when at least one is on. One entry = one piece (`public.intakes` with substance
+  `cigarette` / `snus`, amount 1): *+1 cigareta* / *+1 sibiř* logs it at the current time (with *Zpět* to undo),
+  *Zapsat s jiným časem…* and the lists allow other times within the 7-day window. Graf: pieces per day by form,
+  averages, time between entries (both forms together, `src/lib/intakeStats.ts`) and money spent
+  (`src/lib/nicotine.ts`; pack price + pieces per pack per form in Nastavení, defaults 160 Kč / 20 and
+  130 Kč / 20, applied at today's prices). The update window (version 2) offers nicotine to everyone once.
 - **Kratom in the body** (*Dnes* → *V těle teď*): `src/lib/pk.ts` estimates mitragynine and
   7-OH-mitragynine from your own doses of the last 14 days with a published two-compartment
   pharmacokinetic model, calibrated to clinical data for leaf powder (1.6 % mitragynine assumed).

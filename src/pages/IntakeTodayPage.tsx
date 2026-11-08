@@ -7,22 +7,24 @@ import { Button, Card, cx, ErrorState, Loading } from '../components/ui'
 import { useIntakePresets, useIntakeStats, useNow, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { EDIT_WINDOW_DAYS } from '../lib/days'
-import { round1, type IntakeSubstance } from '../lib/substances'
+import { round1 } from '../lib/substances'
 import { addDays, formatLongDate, formatWeekday, pragueTime, type ISODate } from '../lib/time'
 import { formatDuration, formatMg, formatNumber } from '../lib/units'
 
 const sum = (list: Intake[]) => round1(list.reduce((s, i) => s + i.amount, 0))
 
+const CAFFEINE = ['caffeine'] as const
+
 /** The entry right before the first one of `day` (all lists sorted by time). */
 const entryBefore = (all: Intake[], day: Intake[]) => (day.length ? all[all.indexOf(day[0]) - 1] : undefined)
 
 /** Dnes tab for a substance without a plan (caffeine). */
-export function IntakeTodayPage({ substance }: { substance: IntakeSubstance }) {
+export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
   const me = useMe()
   const today = useToday()
   const now = useNow()
   // All entries: the statistics need them anyway, and the lists below are a slice of them.
-  const all = useIntakeStats(substance, today, now)
+  const all = useIntakeStats(CAFFEINE, today, now)
   const presets = useIntakePresets(substance)
   const [sheet, setSheet] = useState<{ intake: Intake | null; date: ISODate } | null>(null)
 

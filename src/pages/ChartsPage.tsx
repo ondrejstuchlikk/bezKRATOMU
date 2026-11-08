@@ -10,6 +10,7 @@ import { cs } from '../i18n/cs'
 import { addDays } from '../lib/time'
 import { formatMoney } from '../lib/units'
 import { IntakeChartsPage } from './IntakeChartsPage'
+import { NicotineChartsPage } from './NicotineChartsPage'
 
 function moneySaved(days: DayResult[], price: number): number {
   return days.reduce(
@@ -20,7 +21,9 @@ function moneySaved(days: DayResult[], price: number): number {
 
 export default function ChartsPage() {
   const { substance } = useSubstance()
-  return substance === 'kratom' ? <KratomChartsPage /> : <IntakeChartsPage substance={substance} />
+  if (substance === 'caffeine') return <IntakeChartsPage />
+  if (substance === 'nicotine') return <NicotineChartsPage />
+  return <KratomChartsPage />
 }
 
 function KratomChartsPage() {

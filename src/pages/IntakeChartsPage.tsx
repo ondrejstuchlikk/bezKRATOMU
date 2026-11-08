@@ -4,16 +4,17 @@ import { Card, ErrorState, Loading, PageHeader, Segmented, StatTile } from '../c
 import { useIntakeStats, useNow, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { dailyTotals } from '../lib/intakeStats'
-import type { IntakeSubstance } from '../lib/substances'
 import { addDays, formatShortDate } from '../lib/time'
 import { formatDuration, formatMg } from '../lib/units'
 
+const CAFFEINE = ['caffeine'] as const
+
 /** Graf tab for a substance without a plan (caffeine). */
-export function IntakeChartsPage({ substance }: { substance: IntakeSubstance }) {
+export function IntakeChartsPage() {
   const today = useToday()
   const now = useNow()
   const [range, setRange] = useState<14 | 30 | 0>(14)
-  const all = useIntakeStats(substance, today, now)
+  const all = useIntakeStats(CAFFEINE, today, now)
 
   if (all.isPending) return <Loading />
   if (all.isError) return <ErrorState error={all.error} onRetry={() => all.refetch()} />

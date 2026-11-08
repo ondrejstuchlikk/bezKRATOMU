@@ -3,7 +3,7 @@
 import type { AppErrorCode, FeedEventType } from '../api/types'
 import type { Preset } from '../lib/plan'
 import type { DayStatus } from '../lib/scoring'
-import type { Substance } from '../lib/substances'
+import type { NicotineForm, Substance } from '../lib/substances'
 import { formatGrams, formatNumber } from '../lib/units'
 
 /** Czech plural: 1 den, 2–4 dny, 5+ dní. */
@@ -60,22 +60,95 @@ export const cs = {
   },
 
   substances: {
-    names: { kratom: 'Kratom', caffeine: 'Kofein' } satisfies Record<Substance, string>,
-    emoji: { kratom: '🌿', caffeine: '☕' } satisfies Record<Substance, string>,
+    names: { kratom: 'Kratom', caffeine: 'Kofein', nicotine: 'Nikotin' } satisfies Record<Substance, string>,
+    emoji: { kratom: '🌿', caffeine: '☕', nicotine: '🚬' } satisfies Record<Substance, string>,
     switcherLabel: 'Sledovaná látka',
     manage: 'Spravovat látky…',
   },
 
   substancesIntro: {
     title: 'Novinka: sledování kofeinu',
-    body: [
-      'Kromě kratomu si teď můžeš zapisovat i kofein – energeťáky, kávu a cokoli dalšího.',
-      'Uvidíš, kolik ho denně máš, kdy si ho dáváš a jak dlouho vydržíš bez něj.',
-      'Kofein zatím vidíš jen ty, nikdo ve skupině.',
-    ],
-    enable: '☕ Zapnout kofein',
+    titleNicotine: 'Novinka: sledování nikotinu',
+    titleBoth: 'Novinka: kofein a nikotin',
+    intro: 'Kromě kratomu si teď můžeš zapisovat i další věci. Vyber, co chceš sledovat:',
+    options: {
+      caffeine: { label: '☕ Kofein', desc: 'Energeťáky, káva… Kolik ho denně máš a jak dlouho vydržíš bez něj.' },
+      cigarette: { label: '🚬 Cigarety', desc: 'Kolik jich denně vykouříš, odstupy mezi nimi a kolik tě stojí.' },
+      snus: { label: '🫙 Sibiř', desc: 'Kolik sáčků si denně dáš, odstupy mezi nimi a kolik tě stojí.' },
+    },
+    privacy: 'Zatím to vidíš jen ty, nikdo ve skupině.',
+    enable: 'Zapnout vybrané',
     later: 'Teď ne',
     hint: 'Kdykoli to změníš v Nastavení → Sledované látky. Mezi látkami pak přepínáš tlačítkem nahoře.',
+  },
+
+  nicotine: {
+    forms: {
+      cigarette: {
+        name: 'Cigarety',
+        emoji: '🚬',
+        add: '+1 cigareta',
+        one: 'Cigareta',
+        count: (n: number) => `${n} ${plural(n, 'cigareta', 'cigarety', 'cigaret')}`,
+        packPrice: 'Cena krabičky cigaret',
+        packSize: 'Cigaret v krabičce',
+      },
+      snus: {
+        name: 'Sibiř',
+        emoji: '🫙',
+        add: '+1 sibiř',
+        one: 'Sibiř',
+        count: (n: number) => `${n} ${plural(n, 'sibiř', 'sibiře', 'sibiří')}`,
+        packPrice: 'Cena balení sibiře',
+        packSize: 'Sáčků v balení',
+      },
+    } satisfies Record<NicotineForm, Record<string, unknown>>,
+    todayTitle: 'Dnes zatím',
+    spentToday: (money: string) => `Dnes ≈ ${money}`,
+    avg7d: (n: string) => `Průměr posledních 7 dní: ${n} denně`,
+    added: (time: string) => `Zapsáno v ${time} ✓`,
+    undo: 'Zpět',
+    addWithTime: 'Zapsat s jiným časem…',
+    list: 'Dnešní záznamy',
+    none: 'Dnes zatím nic.',
+    sinceLast: 'Od posledního nikotinu',
+    sincePrevious: (duration: string) => `${duration} od předchozího`,
+    lastDays: 'Posledních 7 dní',
+    lastDaysHint: 'Vyber den, který chceš zkontrolovat nebo doplnit.',
+    addToDay: 'Doplnit záznam',
+    privateNote: 'Nikotin vidíš jen ty.',
+    sheet: {
+      addTitle: 'Nikotin',
+      editTitle: 'Upravit záznam',
+      what: 'Co',
+      save: 'Uložit',
+      delete: 'Smazat záznam',
+      confirmDelete: 'Opravdu smazat tento záznam?',
+    },
+    chart: {
+      daily: 'Kusů po dnech',
+      timeOfDay: 'Kdy kouříš / dáváš sibiř',
+      timeOfDayHint: 'Počet záznamů podle hodiny',
+      empty: 'Zatím nemáš zapsaný žádný nikotin.',
+    },
+    stats: {
+      today: 'Dnes',
+      avg7d: 'Průměr za den (7 dní)',
+      avgAll: 'Průměr za den (celkem)',
+      maxDay: 'Nejvíc za den',
+      recordGap: 'Nejdelší čas bez nikotinu',
+      avgGap5d: 'Průměrný odstup (5 dní)',
+      avgGapAll: 'Průměrný odstup (celkem)',
+      bothForms: 'cigarety i sibiř dohromady',
+      emptyDaysNote: 'Den bez záznamu se počítá jako den bez nikotinu.',
+      money: 'Utraceno',
+      moneyToday: 'Dnes',
+      money7d: 'Posledních 7 dní',
+      moneyAll: 'Celkem',
+      moneyPerDay: 'Průměr za den',
+      moneyHint: 'Podle cen v Nastavení. Když cenu změníš, přepočítá se i minulost.',
+      moneyNoPrice: 'Nastav si cenu v Nastavení a uvidíš, kolik utratíš.',
+    },
   },
 
   caffeine: {
@@ -453,6 +526,9 @@ export const cs = {
     title: 'Nastavení',
     substances: 'Sledované látky',
     substancesHint: 'Kratom sleduješ vždy. Další látky se objeví v přepínači nahoře.',
+    nicotineGroup: 'Nikotin',
+    nicotinePrices: 'Ceny',
+    nicotinePricesHint: 'Slouží jen k odhadu, kolik utratíš.',
     caffeinePresets: 'Moje nápoje',
     caffeinePresetsHint: 'Kolik kofeinu má nápoj, který piješ. Pak ho zapíšeš jedním klepnutím, jako lžičku u kratomu. Úprava nezmění už zapsané záznamy.',
     addPreset: '+ Přidat nápoj',

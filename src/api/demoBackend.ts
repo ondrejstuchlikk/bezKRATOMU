@@ -45,6 +45,12 @@ interface DemoUser {
   notifyLevel?: boolean
   trackCaffeine?: boolean
   substancesIntroSeen?: number
+  trackCigarettes?: boolean
+  trackSnus?: boolean
+  cigarettePackPrice?: number | null
+  cigarettePackSize?: number
+  snusPackPrice?: number | null
+  snusPackSize?: number
   /** Default caffeine presets were created (mirrors private.seed_intake_presets). */
   presetsSeeded?: boolean
   /** Simulated friend: doses are generated instead of stored. */
@@ -319,6 +325,35 @@ function botCaffeine(user: DemoUser, now: Date): DemoIntake[] {
   return intakes
 }
 
+/** Two weeks of cigarettes or snus for a simulated friend (about half of them use nicotine). */
+function botNicotine(user: DemoUser, now: Date): DemoIntake[] {
+  const rand = rng(hash(`${user.id}-nicotine`))
+  if (rand() < 0.5) return []
+  const form = rand() < 0.5 ? 'cigarette' : 'snus'
+  const today = pragueDate(now)
+  const intakes: DemoIntake[] = []
+  for (let back = 13; back >= 0; back--) {
+    const date = addDays(today, -back)
+    const count = 3 + Math.floor(rand() * 8)
+    for (let i = 0; i < count; i++) {
+      const minutes = 7 * 60 + Math.floor(rand() * 15 * 60)
+      const takenAt = pragueLocalToInstant(date, `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`)
+      if (takenAt > now) continue
+      intakes.push({
+        id: `${user.id}-nic-${date}-${i}`,
+        userId: user.id,
+        substance: form,
+        takenAt: takenAt.toISOString(),
+        localDate: date,
+        amount: 1,
+        presetName: null,
+        presetCount: null,
+      })
+    }
+  }
+  return intakes
+}
+
 // ---------------------------------------------------------------------------
 // Backend
 // ---------------------------------------------------------------------------
@@ -514,6 +549,10 @@ export function createDemoBackend(): Backend {
     const localDate = pragueDate(input.takenAt)
     checkWindow(localDate)
     if (!(input.amount > 0 && input.amount <= MAX_CAFFEINE_MG)) throw new AppError('unknown', 'invalid_amount')
+    // Mirrors intakes_nicotine_one_piece (0018).
+    if (input.substance !== 'caffeine' && (input.amount !== 1 || input.presetName !== null || input.presetCount !== null)) {
+      throw new AppError('unknown', 'invalid_nicotine_entry')
+    }
     if ((input.presetName === null) !== (input.presetCount === null)) throw new AppError('unknown', 'invalid_preset')
     if (input.presetCount !== null && !(input.presetCount > 0 && input.presetCount <= MAX_PRESET_COUNT)) {
       throw new AppError('unknown', 'invalid_preset_count')
@@ -606,7 +645,7 @@ export function createDemoBackend(): Backend {
         const generated = dosesOf(user, planDaysOf(user.id))
         state.doses.push(...generated.doses)
         for (const date of generated.zeroDays) state.zeroDays.push({ userId: user.id, date })
-        intakes().push(...botCaffeine(user, new Date()))
+        intakes().push(...botCaffeine(user, new Date()), ...botNicotine(user, new Date()))
         user.bot = null
       }
       state.sessionUserId = user.id
@@ -633,6 +672,13 @@ export function createDemoBackend(): Backend {
         notifyLevel: u.notifyLevel ?? false,
         trackCaffeine: u.trackCaffeine ?? false,
         substancesIntroSeen: u.substancesIntroSeen ?? 0,
+        trackCigarettes: u.trackCigarettes ?? false,
+        trackSnus: u.trackSnus ?? false,
+        // Defaults of the columns in 0018.
+        cigarettePackPrice: u.cigarettePackPrice === undefined ? 160 : u.cigarettePackPrice,
+        cigarettePackSize: u.cigarettePackSize ?? 20,
+        snusPackPrice: u.snusPackPrice === undefined ? 130 : u.snusPackPrice,
+        snusPackSize: u.snusPackSize ?? 20,
       }
     },
 
@@ -647,6 +693,12 @@ export function createDemoBackend(): Backend {
       if (patch.notifyLevel !== undefined) u.notifyLevel = patch.notifyLevel
       if (patch.trackCaffeine !== undefined) u.trackCaffeine = patch.trackCaffeine
       if (patch.substancesIntroSeen !== undefined) u.substancesIntroSeen = patch.substancesIntroSeen
+      if (patch.trackCigarettes !== undefined) u.trackCigarettes = patch.trackCigarettes
+      if (patch.trackSnus !== undefined) u.trackSnus = patch.trackSnus
+      if (patch.cigarettePackPrice !== undefined) u.cigarettePackPrice = patch.cigarettePackPrice
+      if (patch.cigarettePackSize !== undefined) u.cigarettePackSize = patch.cigarettePackSize
+      if (patch.snusPackPrice !== undefined) u.snusPackPrice = patch.snusPackPrice
+      if (patch.snusPackSize !== undefined) u.snusPackSize = patch.snusPackSize
       save()
     },
 
@@ -763,11 +815,11 @@ export function createDemoBackend(): Backend {
       save()
     },
 
-    async listMyIntakes(substance: IntakeSubstance, from, to) {
+    async listMyIntakes(substances: readonly IntakeSubstance[], from, to) {
       await delay(60)
       const user = me()
       return intakes()
-        .filter((i) => i.userId === user.id && i.substance === substance && i.localDate >= from && i.localDate <= to)
+        .filter((i) => i.userId === user.id && substances.includes(i.substance) && i.localDate >= from && i.localDate <= to)
         .sort((a, b) => a.takenAt.localeCompare(b.takenAt))
         .map(({ userId: _userId, ...i }) => i)
     },
@@ -775,8 +827,10 @@ export function createDemoBackend(): Backend {
     async addIntake(input) {
       await delay()
       const user = me()
-      intakes().push({ id: uid(), userId: user.id, substance: input.substance, ...intakeFromInput(input) })
+      const id = uid()
+      intakes().push({ id, userId: user.id, substance: input.substance, ...intakeFromInput(input) })
       save()
+      return id
     },
 
     async updateIntake(id, input) {

@@ -20,7 +20,7 @@ export const keys = {
   feed: ['feed'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   social: (userId: string, date: ISODate) => ['social', userId, date] as const,
-  intakes: (substance: IntakeSubstance, from: ISODate, to: ISODate) => ['intakes', substance, from, to] as const,
+  intakes: (kinds: readonly IntakeSubstance[], from: ISODate, to: ISODate) => ['intakes', kinds.join('+'), from, to] as const,
   presets: (substance: IntakeSubstance) => ['presets', substance] as const,
 }
 
@@ -52,15 +52,15 @@ export const useProfile = (userId: string) =>
 export const useDaySocial = (userId: string, date: ISODate) =>
   useQuery({ queryKey: keys.social(userId, date), queryFn: () => backend.getDaySocial(userId, date) })
 
-export const useMyIntakes = (substance: IntakeSubstance, from: ISODate, to: ISODate) =>
-  useQuery({ queryKey: keys.intakes(substance, from, to), queryFn: () => backend.listMyIntakes(substance, from, to) })
+export const useMyIntakes = (kinds: readonly IntakeSubstance[], from: ISODate, to: ISODate) =>
+  useQuery({ queryKey: keys.intakes(kinds, from, to), queryFn: () => backend.listMyIntakes(kinds, from, to) })
 
 export const useIntakePresets = (substance: IntakeSubstance) =>
   useQuery({ queryKey: keys.presets(substance), queryFn: () => backend.listPresets(substance) })
 
-/** Statistics over all of the user's own entries of a substance (src/lib/intakeStats.ts). */
-export function useIntakeStats(substance: IntakeSubstance, today: ISODate, now: Date) {
-  const all = useMyIntakes(substance, ALL_FROM, today)
+/** Statistics over all of the user's own entries of the given kinds together (src/lib/intakeStats.ts). */
+export function useIntakeStats(kinds: readonly IntakeSubstance[], today: ISODate, now: Date) {
+  const all = useMyIntakes(kinds, ALL_FROM, today)
   const stats = useMemo(() => (all.data ? computeIntakeStats(all.data, now) : undefined), [all.data, now])
   return { ...all, stats }
 }

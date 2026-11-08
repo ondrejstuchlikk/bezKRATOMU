@@ -5,6 +5,16 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-08
 
+- **You can now track nicotine: cigarettes and sibiř.** A window offers it once after the update (people who
+  never saw the caffeine window get caffeine offered there too); it can also be switched in *Nastavení →
+  Sledované látky*, cigarettes and sibiř separately. Then *🚬 Nikotin* appears in the switcher at the top.
+  On *Dnes*: one tap on *+1 cigareta* or *+1 sibiř* logs it right now (*Zpět* undoes it), *Zapsat s jiným časem…*
+  for another time; today's count, today's cost, time since the last one and the last 7 days. On *Graf*:
+  pieces per day, averages, the longest time without nicotine (cigarettes and sibiř together) and money spent
+  (today, last 7 days, total, per day). Prices are in *Nastavení* when Nikotin is selected (a pack of cigarettes
+  160 Kč / 20 and sibiř 130 Kč / 20 to start). Only you see it.
+  Migration: `0018_nicotine.sql` (run it **before** this version goes live, or the app shows an error).
+
 - **You can now track caffeine next to kratom.** After the update, a window offers to turn it on (once per
   account); it can also be switched in *Nastavení → Sledované látky*. Once on, a button at the top of the
   screen (*🌿 Kratom ▾*) switches the Dnes, Graf, Skupina and Nastavení tabs between kratom and caffeine.

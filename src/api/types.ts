@@ -26,6 +26,14 @@ export interface MySettings {
   notifyLevel: boolean
   /** Shows caffeine in the substance switcher. */
   trackCaffeine: boolean
+  /** Nicotine forms the user tracks (nicotine shows in the switcher when either is on). */
+  trackCigarettes: boolean
+  trackSnus: boolean
+  /** For "money spent": price of a pack (Kč, null = not set) and pieces per pack. */
+  cigarettePackPrice: number | null
+  cigarettePackSize: number
+  snusPackPrice: number | null
+  snusPackSize: number
   /** Latest version of the "new substances" window the user has closed (SUBSTANCES_INTRO_VERSION). */
   substancesIntroSeen: number
 }
@@ -73,7 +81,7 @@ export interface DoseInput {
   note: string | null
 }
 
-/** One entry of a substance other than kratom (public.intakes). Caffeine: amount in mg. */
+/** One entry of a substance other than kratom (public.intakes). Caffeine: amount in mg; nicotine: 1 piece. */
 export interface Intake {
   id: string
   substance: IntakeSubstance
@@ -260,9 +268,10 @@ export interface Backend {
   deleteDose(id: string): Promise<void>
   setZeroDay(date: ISODate, on: boolean): Promise<void>
 
-  /** Own entries of a non-kratom substance, sorted by time. */
-  listMyIntakes(substance: IntakeSubstance, from: ISODate, to: ISODate): Promise<Intake[]>
-  addIntake(input: IntakeInput): Promise<void>
+  /** Own entries of the given kinds, sorted by time. */
+  listMyIntakes(substances: readonly IntakeSubstance[], from: ISODate, to: ISODate): Promise<Intake[]>
+  /** Returns the new entry's id. */
+  addIntake(input: IntakeInput): Promise<string>
   /** The substance of an existing entry never changes. */
   updateIntake(id: string, input: IntakeInput): Promise<void>
   deleteIntake(id: string): Promise<void>

@@ -3,7 +3,7 @@ import { backend, type Intake, type IntakePreset } from '../api'
 import { useRefreshIntakes, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { EDIT_WINDOW_DAYS } from '../lib/days'
-import { MAX_CAFFEINE_MG, MAX_PRESET_COUNT, round1, type IntakeSubstance } from '../lib/substances'
+import { MAX_CAFFEINE_MG, MAX_PRESET_COUNT, round1 } from '../lib/substances'
 import { addDays, formatWeekdayDate, pragueLocalToInstant, pragueTime, pragueToday, type ISODate } from '../lib/time'
 import { formatMg, formatNumber } from '../lib/units'
 import { NumberStepper } from './NumberStepper'
@@ -11,7 +11,7 @@ import { PresetForm } from './PresetForm'
 import { Button, cx, errorMessage, inputClass } from './ui'
 
 export interface IntakeSheetProps {
-  substance: IntakeSubstance
+  substance: 'caffeine'
   open: boolean
   onClose: () => void
   /** Existing entry to edit; omitted for a new one. */

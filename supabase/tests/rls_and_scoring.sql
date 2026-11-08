@@ -326,6 +326,22 @@ set role authenticated;
 with d as (delete from intakes where amount = 40 returning 1) select public.expect_eq(count(*)::text, '0', 'cannot delete intake older than 7 days') from d;
 reset role;
 
+-- ===== Nicotine: cigarettes and snus (0018) =====
+select public.expect_eq((select concat_ws(',', track_cigarettes, track_snus, cigarette_pack_price, cigarette_pack_size, snus_pack_price, snus_pack_size)
+  from user_settings where user_id = :'e'), 'f,f,160.00,20,130.00,20', 'nicotine defaults');
+set role authenticated;
+insert into intakes (substance, taken_at, amount) values ('cigarette', now(), 1), ('snus', now() - interval '1 hour', 1);
+select public.expect_eq((select string_agg(substance, ',' order by substance) from intakes where substance <> 'caffeine'), 'cigarette,snus', 'log cigarette and snus');
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('cigarette', now(), 2)$$, 'two cigarettes in one entry');
+select public.expect_error($$insert into intakes (substance, taken_at, amount, preset_name, preset_count) values ('snus', now(), 1, 'X', 1)$$, 'snus with a preset');
+select public.expect_error($$insert into intakes (substance, taken_at, amount) values ('vape', now(), 1)$$, 'unknown nicotine form');
+select public.expect_error($$update intakes set substance = 'caffeine' where substance = 'snus'$$, 'change the form of an entry');
+update user_settings set track_cigarettes = true, cigarette_pack_price = 150, cigarette_pack_size = 25, snus_pack_price = null;
+select public.expect_eq((select concat_ws(',', track_cigarettes, cigarette_pack_price, cigarette_pack_size, coalesce(snus_pack_price::text, 'none'))
+  from user_settings), 't,150.00,25,none', 'nicotine settings saved');
+select public.expect_error($$update user_settings set cigarette_pack_size = 0$$, 'pack size 0');
+reset role;
+
 -- ===== Anonymous =====
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;

@@ -8,7 +8,7 @@ import { PresetForm } from '../components/PresetForm'
 import { Button, Card, ErrorState, errorMessage, inputClass, Loading, PageHeader, Segmented, Toggle } from '../components/ui'
 import { keys, useIntakePresets, useSettings } from '../hooks/queries'
 import { useSubstance } from '../hooks/substance'
-import type { IntakeSubstance } from '../lib/substances'
+import type { NicotineForm } from '../lib/substances'
 import { cs } from '../i18n/cs'
 import { disablePushOnThisDevice } from '../lib/push'
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme'
@@ -31,11 +31,9 @@ export function SettingsPage() {
 
       <TrackedSubstances settings={settings.data} />
 
-      {substance === 'kratom' ? (
-        <KratomSettings settings={settings.data} />
-      ) : (
-        <PresetSettings substance={substance} />
-      )}
+      {substance === 'kratom' && <KratomSettings settings={settings.data} />}
+      {substance === 'caffeine' && <PresetSettings substance={substance} />}
+      {substance === 'nicotine' && <NicotinePrices settings={settings.data} />}
 
       <NotificationSettings settings={settings.data} />
 
@@ -95,11 +93,11 @@ function TrackedSubstances({ settings }: { settings: MySettings }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function change(next: boolean) {
+  async function change(patch: Partial<MySettings>) {
     setBusy(true)
     setError(null)
     try {
-      await backend.updateSettings({ trackCaffeine: next })
+      await backend.updateSettings(patch)
       await queryClient.invalidateQueries({ queryKey: keys.settings })
     } catch (err) {
       setError(errorMessage(err))
@@ -121,9 +119,23 @@ function TrackedSubstances({ settings }: { settings: MySettings }) {
           {cs.substances.emoji.caffeine} {cs.substances.names.caffeine}
         </span>
         <div className={busy ? 'opacity-50' : ''}>
-          <Toggle checked={settings.trackCaffeine} onChange={change} label={cs.substances.names.caffeine} />
+          <Toggle checked={settings.trackCaffeine} onChange={(v) => change({ trackCaffeine: v })} label={cs.substances.names.caffeine} />
         </div>
       </div>
+      <div className="pt-1 text-xs font-medium tracking-wide text-muted uppercase">{cs.settings.nicotineGroup}</div>
+      {(['cigarette', 'snus'] as const).map((f) => {
+        const field = f === 'cigarette' ? 'trackCigarettes' : 'trackSnus'
+        return (
+          <div key={f} className="flex items-center justify-between gap-4">
+            <span className="font-medium">
+              {cs.nicotine.forms[f].emoji} {cs.nicotine.forms[f].name}
+            </span>
+            <div className={busy ? 'opacity-50' : ''}>
+              <Toggle checked={settings[field]} onChange={(v) => change({ [field]: v })} label={cs.nicotine.forms[f].name} />
+            </div>
+          </div>
+        )
+      })}
       <p className={error ? 'text-sm text-over' : 'text-sm text-muted'}>{error ?? cs.settings.substancesHint}</p>
     </Card>
   )
@@ -158,8 +170,49 @@ function KratomSettings({ settings }: { settings: MySettings }) {
   )
 }
 
+/** Pack price and size of each tracked nicotine form, for the "money spent" statistics. */
+function NicotinePrices({ settings }: { settings: MySettings }) {
+  const forms: NicotineForm[] = (['cigarette', 'snus'] as const).filter((f) =>
+    f === 'cigarette' ? settings.trackCigarettes : settings.trackSnus,
+  )
+  return (
+    <Card className="space-y-5">
+      <div className="space-y-1">
+        <h2 className="font-semibold">
+          {cs.substances.emoji.nicotine} {cs.settings.nicotinePrices}
+        </h2>
+        <p className="text-sm text-muted">{cs.settings.nicotinePricesHint}</p>
+      </div>
+      {forms.map((f) => (
+        <div key={f} className="space-y-4">
+          <NumberSetting
+            label={cs.nicotine.forms[f].packPrice}
+            hint=""
+            placeholder={f === 'cigarette' ? '160' : '130'}
+            suffix="Kč"
+            value={f === 'cigarette' ? settings.cigarettePackPrice : settings.snusPackPrice}
+            max={10000}
+            field={f === 'cigarette' ? 'cigarettePackPrice' : 'snusPackPrice'}
+          />
+          <NumberSetting
+            label={cs.nicotine.forms[f].packSize}
+            hint=""
+            placeholder="20"
+            suffix="ks"
+            value={f === 'cigarette' ? settings.cigarettePackSize : settings.snusPackSize}
+            max={1000}
+            integer
+            required
+            field={f === 'cigarette' ? 'cigarettePackSize' : 'snusPackSize'}
+          />
+        </div>
+      ))}
+    </Card>
+  )
+}
+
 /** The user's own drinks for one substance: list, edit, delete, add. */
-function PresetSettings({ substance }: { substance: IntakeSubstance }) {
+function PresetSettings({ substance }: { substance: 'caffeine' }) {
   const presets = useIntakePresets(substance)
   // Id of the preset being edited, 'new' while adding one.
   const [editing, setEditing] = useState<string | null>(null)
@@ -217,6 +270,8 @@ function NumberSetting({
   value,
   max,
   field,
+  integer = false,
+  required = false,
 }: {
   label: string
   hint: string
@@ -224,7 +279,11 @@ function NumberSetting({
   suffix: string
   value: number | null
   max: number
-  field: 'teaspoonGrams' | 'pricePerGram'
+  field: 'teaspoonGrams' | 'pricePerGram' | 'cigarettePackPrice' | 'snusPackPrice' | 'cigarettePackSize' | 'snusPackSize'
+  /** Whole numbers only. */
+  integer?: boolean
+  /** Can't be left empty. */
+  required?: boolean
 }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState(value === null ? '' : formatNumber(value))
@@ -232,7 +291,9 @@ function NumberSetting({
   const [error, setError] = useState<string | null>(null)
 
   const parsed = text.trim() === '' ? null : parseDecimal(text)
-  const invalid = parsed !== null && (Number.isNaN(parsed) || parsed <= 0 || parsed > max)
+  const invalid =
+    (parsed === null && required) ||
+    (parsed !== null && (Number.isNaN(parsed) || parsed <= 0 || parsed > max || (integer && !Number.isInteger(parsed))))
   const changed = parsed !== value
 
   async function save() {

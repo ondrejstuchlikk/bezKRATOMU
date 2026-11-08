@@ -60,6 +60,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `supabase/migrations/0016_level_notifications.sql` | SQL copy of the combined line (`private.pk_level`, same constants as `pk.ts`) + morning recap / milestone pushes (`private.claim_level_notifications(p_now)`). Changing the model constants means changing both; `pk.test.ts` and the SQL checks pin the same numbers |
 | `src/lib/substances.ts`, `src/hooks/substance.ts` | Substances other than kratom (caffeine so far): the `Substance` type, which ones a user tracks, and the per-device "which substance do the tabs show" context (`useSubstance`). Switcher pill: `SubstanceSwitcher.tsx`; one-time announcement: `SubstancesIntro.tsx` (`SUBSTANCES_INTRO_VERSION`) |
 | `src/pages/TodayRoute.tsx`, `IntakeTodayPage.tsx`, `IntakeChartsPage.tsx`, `components/IntakeSheet.tsx`, `PresetForm.tsx` | Caffeine UI. Dnes/Graf/Skupina/Nastavení branch on `useSubstance()`; kratom pages are unchanged |
+| `src/pages/NicotineTodayPage.tsx`, `NicotineChartsPage.tsx`, `components/NicotineSheet.tsx`, `src/lib/nicotine.ts` | Nicotine UI (one-tap +1 with undo; edit sheet can't change an entry's form — no column grant on `substance`), counts per form and money spent |
 | `src/lib/intakeStats.ts` | Caffeine stats (daily totals, averages, gaps via `computeGapStats` with every day counted as logged), computed in the browser from the user's own `public.intakes` |
 | `src/lib/gaps.ts` | TS mirror of `private.gap_stats` (time between doses); `gaps.test.ts` pins the same numbers as the SQL checks |
 | `src/lib/parity.test.ts` | Checks TS scoring == SQL scoring using `src/lib/__fixtures__/sql_user_days.json` (written by the SQL test run) |
@@ -107,7 +108,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0017 applied (as of 2026-11-08). In the SQL Editor, 0017 shows one `NULL` row per account
+- Live DB has 0001–0018 applied (as of 2026-11-08). In the SQL Editor, 0017 shows one `NULL` row per account
   (the seeding `select`); that is success, not an error.
 - Supabase grants everything on new `public` tables to `anon`/`authenticated` by default: every new table
   needs `revoke all … from anon, authenticated` and explicit column grants (see 0002, 0017).
@@ -176,7 +177,7 @@ Marek, Bára — all PIN `123456`.
 - PMC (`pmc.ncbi.nlm.nih.gov`) sometimes shows a bot check to WebFetch; NCBI E-utilities
   (`eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=…`) still return abstracts.
 
-## Other substances (caffeine now; nicotine next)
+## Other substances (caffeine and nicotine done; caffeine body model next)
 
 - User decisions (2026-11-08): switcher pill at the top switches the whole app; kratom always tracked, others
   opt-in in Nastavení; a one-time window per account announces new substances (bump
@@ -186,11 +187,13 @@ Marek, Bára — all PIN `123456`.
 - Caffeine: tracking only (no plan/limit), mg with user-editable presets (defaults Velký energeťák 150 mg, Malý
   energeťák 75 mg) + custom mg, no feeling/note, no reminders. Body-level (PK) model for caffeine is planned
   later, after a proper literature review — don't add a placeholder model.
-- Nicotine (next step): one *Nikotin* entry in the switcher with two forms, cigarettes and snus ("sibiř");
+- Nicotine (done 2026-11-08, `0018`): one *Nikotin* entry in the switcher with two forms, cigarettes and snus ("sibiř");
   users pick which form(s) they track (both possible). One-tap "+1" with time = now (editable after, same 7-day
   window). Stats: count per day + chart, time between (both forms together, plus counts per form), money spent
   (price per pack + pieces per pack; defaults cigarettes 160 Kč / 20, sibiř 130 Kč / 20). No note/feeling.
-  Planned order: caffeine (done) → nicotine → caffeine body model.
+  Planned order: caffeine (done) → nicotine (done) → caffeine body model.
+- Types: `Substance` = what the switcher shows (`kratom | caffeine | nicotine`); `IntakeSubstance` = the value in
+  `public.intakes.substance` (`caffeine | cigarette | snus`). `listMyIntakes` takes a list of kinds.
 
 ## Open items / ideas
 

@@ -217,7 +217,10 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const settings = check(
         await sb
           .from('user_settings')
-          .select('teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level, track_caffeine, substances_intro_seen')
+          .select(
+            'teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level, track_caffeine, substances_intro_seen, ' +
+              'track_cigarettes, track_snus, cigarette_pack_price, cigarette_pack_size, snus_pack_price, snus_pack_size',
+          )
           .eq('user_id', id)
           .single(),
       ) as Row
@@ -231,6 +234,12 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         notifyLevel: Boolean(settings.notify_level),
         trackCaffeine: Boolean(settings.track_caffeine),
         substancesIntroSeen: Number(settings.substances_intro_seen ?? 0),
+        trackCigarettes: Boolean(settings.track_cigarettes),
+        trackSnus: Boolean(settings.track_snus),
+        cigarettePackPrice: num(settings.cigarette_pack_price),
+        cigarettePackSize: Number(settings.cigarette_pack_size ?? 20),
+        snusPackPrice: num(settings.snus_pack_price),
+        snusPackSize: Number(settings.snus_pack_size ?? 20),
       }
     },
 
@@ -247,6 +256,12 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       if (patch.notifyLevel !== undefined) settings.notify_level = patch.notifyLevel
       if (patch.trackCaffeine !== undefined) settings.track_caffeine = patch.trackCaffeine
       if (patch.substancesIntroSeen !== undefined) settings.substances_intro_seen = patch.substancesIntroSeen
+      if (patch.trackCigarettes !== undefined) settings.track_cigarettes = patch.trackCigarettes
+      if (patch.trackSnus !== undefined) settings.track_snus = patch.trackSnus
+      if (patch.cigarettePackPrice !== undefined) settings.cigarette_pack_price = patch.cigarettePackPrice
+      if (patch.cigarettePackSize !== undefined) settings.cigarette_pack_size = patch.cigarettePackSize
+      if (patch.snusPackPrice !== undefined) settings.snus_pack_price = patch.snusPackPrice
+      if (patch.snusPackSize !== undefined) settings.snus_pack_size = patch.snusPackSize
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))
@@ -354,7 +369,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       }
     },
 
-    async listMyIntakes(substance, from, to) {
+    async listMyIntakes(substances, from, to) {
       const id = await uid()
       const rows: Row[] = []
       for (let offset = 0; ; offset += PAGE) {
@@ -363,7 +378,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
             .from('intakes')
             .select('*')
             .eq('user_id', id)
-            .eq('substance', substance)
+            .in('substance', [...substances])
             .gte('local_date', from)
             .lte('local_date', to)
             .order('taken_at')
@@ -377,7 +392,10 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
     },
 
     async addIntake(input) {
-      check(await sb.from('intakes').insert({ substance: input.substance, ...intakeRow(input) }))
+      const row = check(
+        await sb.from('intakes').insert({ substance: input.substance, ...intakeRow(input) }).select('id').single(),
+      ) as Row
+      return row.id as string
     },
 
     async updateIntake(id, input) {
