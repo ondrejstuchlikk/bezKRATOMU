@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0018`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0019`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -113,6 +113,13 @@ sends. Lock-screen texts never contain grams.
   read their entries; Skupina says it's kratom-only for now. Statistics (daily totals, averages, time between
   entries) are computed in the browser by `src/lib/intakeStats.ts`; a day without entries counts as 0 mg.
   When sharing comes, they must move into security-definer RPCs like the kratom ones.
+- **Caffeine in the body** (*Dnes* with Kofein selected → *Kofein v těle*): `src/lib/caffeinePk.ts` estimates the
+  caffeine absorbed and not yet eliminated from the user's own entries of the last 72 h (one-compartment model,
+  half-life 5.2 h, absorption peak ~50 min), shown in mg and cups of coffee (100 mg each), with a 24 h chart,
+  a projection past bedtime, the amount at bedtime and when it falls below a soft sleep reference
+  (0.52 mg per kg body weight). Body weight (default 70 kg) and bedtime (default 23:00) are in Nastavení
+  (`0019_caffeine_level.sql`). Literature, model choice, validation and limits:
+  `docs/caffeine-pk-model/caffeine-pk-model.pdf`; `docs/caffeine-pk-model/model.py` regenerates the constants.
 - **Nicotine** (`0018_nicotine.sql`): cigarettes and snus (*sibiř*), each switched on separately; nicotine
   shows in the switcher when at least one is on. One entry = one piece (`public.intakes` with substance
   `cigarette` / `snus`, amount 1): *+1 cigareta* / *+1 sibiř* logs it at the current time (with *Zpět* to undo),

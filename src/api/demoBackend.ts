@@ -51,6 +51,8 @@ interface DemoUser {
   cigarettePackSize?: number
   snusPackPrice?: number | null
   snusPackSize?: number
+  bodyWeightKg?: number | null
+  bedtime?: string
   /** Default caffeine presets were created (mirrors private.seed_intake_presets). */
   presetsSeeded?: boolean
   /** Simulated friend: doses are generated instead of stored. */
@@ -679,6 +681,8 @@ export function createDemoBackend(): Backend {
         cigarettePackSize: u.cigarettePackSize ?? 20,
         snusPackPrice: u.snusPackPrice === undefined ? 130 : u.snusPackPrice,
         snusPackSize: u.snusPackSize ?? 20,
+        bodyWeightKg: u.bodyWeightKg ?? null,
+        bedtime: u.bedtime ?? '23:00',
       }
     },
 
@@ -699,6 +703,11 @@ export function createDemoBackend(): Backend {
       if (patch.cigarettePackSize !== undefined) u.cigarettePackSize = patch.cigarettePackSize
       if (patch.snusPackPrice !== undefined) u.snusPackPrice = patch.snusPackPrice
       if (patch.snusPackSize !== undefined) u.snusPackSize = patch.snusPackSize
+      if (patch.bodyWeightKg !== undefined) u.bodyWeightKg = patch.bodyWeightKg
+      if (patch.bedtime !== undefined) {
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(patch.bedtime)) throw new AppError('unknown', 'invalid_bedtime')
+        u.bedtime = patch.bedtime
+      }
       save()
     },
 

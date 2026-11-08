@@ -2,9 +2,10 @@ import { Fragment, useState } from 'react'
 import type { Intake } from '../api'
 import { useMe } from '../auth/SessionProvider'
 import { PlusIcon } from '../components/icons'
+import { CaffeineLevelCard } from '../components/CaffeineLevelCard'
 import { IntakeSheet } from '../components/IntakeSheet'
 import { Button, Card, cx, ErrorState, Loading } from '../components/ui'
-import { useIntakePresets, useIntakeStats, useNow, useToday } from '../hooks/queries'
+import { useIntakePresets, useIntakeStats, useNow, useSettings, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { EDIT_WINDOW_DAYS } from '../lib/days'
 import { round1 } from '../lib/substances'
@@ -26,6 +27,7 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
   // All entries: the statistics need them anyway, and the lists below are a slice of them.
   const all = useIntakeStats(CAFFEINE, today, now)
   const presets = useIntakePresets(substance)
+  const settings = useSettings()
   const [sheet, setSheet] = useState<{ intake: Intake | null; date: ISODate } | null>(null)
 
   if (all.isPending || presets.isPending) return <Loading />
@@ -82,6 +84,14 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
         <h2 className="font-semibold">{cs.caffeine.list}</h2>
         <IntakeList list={todayList} previous={entryBefore(intakes, todayList)} onEdit={(i) => setSheet({ intake: i, date: today })} />
       </Card>
+
+      <CaffeineLevelCard
+        intakes={intakes}
+        today={today}
+        now={now}
+        weightKg={settings.data?.bodyWeightKg ?? null}
+        bedtime={settings.data?.bedtime ?? '23:00'}
+      />
 
       <LastDaysCard
         today={today}

@@ -32,7 +32,12 @@ export function SettingsPage() {
       <TrackedSubstances settings={settings.data} />
 
       {substance === 'kratom' && <KratomSettings settings={settings.data} />}
-      {substance === 'caffeine' && <PresetSettings substance={substance} />}
+      {substance === 'caffeine' && (
+        <>
+          <PresetSettings substance={substance} />
+          <CaffeineLevelSettings settings={settings.data} />
+        </>
+      )}
       {substance === 'nicotine' && <NicotinePrices settings={settings.data} />}
 
       <NotificationSettings settings={settings.data} />
@@ -170,6 +175,66 @@ function KratomSettings({ settings }: { settings: MySettings }) {
   )
 }
 
+/** Body weight and bedtime for the "Kofein v těle" estimate. */
+function CaffeineLevelSettings({ settings }: { settings: MySettings }) {
+  const queryClient = useQueryClient()
+  const [bedtime, setBedtime] = useState(settings.bedtime)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  async function saveBedtime() {
+    setStatus('saving')
+    setError(null)
+    try {
+      await backend.updateSettings({ bedtime })
+      await queryClient.invalidateQueries({ queryKey: keys.settings })
+      setStatus('saved')
+    } catch (err) {
+      setError(errorMessage(err))
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <Card className="space-y-5">
+      <h2 className="font-semibold">
+        {cs.substances.emoji.caffeine} {cs.settings.caffeineLevel}
+      </h2>
+      <NumberSetting
+        label={cs.settings.weight}
+        hint={cs.settings.weightHint}
+        placeholder="70"
+        suffix="kg"
+        value={settings.bodyWeightKg}
+        min={30}
+        max={250}
+        field="bodyWeightKg"
+      />
+      <div className="space-y-1.5">
+        <label className="text-sm font-semibold" htmlFor="bedtime">
+          {cs.settings.bedtime}
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="bedtime"
+            type="time"
+            className={inputClass + ' flex-1'}
+            value={bedtime}
+            onChange={(e) => {
+              setBedtime(e.target.value || '23:00')
+              setStatus('idle')
+            }}
+          />
+          <Button variant="secondary" disabled={bedtime === settings.bedtime || status === 'saving'} onClick={saveBedtime}>
+            {status === 'saved' && bedtime === settings.bedtime ? cs.common.saved : cs.common.save}
+          </Button>
+        </div>
+        <p className={error ? 'text-sm text-over' : 'text-sm text-muted'}>{error ?? cs.settings.bedtimeHint}</p>
+      </div>
+    </Card>
+  )
+}
+
 /** Pack price and size of each tracked nicotine form, for the "money spent" statistics. */
 function NicotinePrices({ settings }: { settings: MySettings }) {
   const forms: NicotineForm[] = (['cigarette', 'snus'] as const).filter((f) =>
@@ -272,6 +337,7 @@ function NumberSetting({
   field,
   integer = false,
   required = false,
+  min,
 }: {
   label: string
   hint: string
@@ -279,7 +345,9 @@ function NumberSetting({
   suffix: string
   value: number | null
   max: number
-  field: 'teaspoonGrams' | 'pricePerGram' | 'cigarettePackPrice' | 'snusPackPrice' | 'cigarettePackSize' | 'snusPackSize'
+  field: 'teaspoonGrams' | 'pricePerGram' | 'cigarettePackPrice' | 'snusPackPrice' | 'cigarettePackSize' | 'snusPackSize' | 'bodyWeightKg'
+  /** Lowest allowed value (exclusive 0 by default). */
+  min?: number
   /** Whole numbers only. */
   integer?: boolean
   /** Can't be left empty. */
@@ -293,7 +361,8 @@ function NumberSetting({
   const parsed = text.trim() === '' ? null : parseDecimal(text)
   const invalid =
     (parsed === null && required) ||
-    (parsed !== null && (Number.isNaN(parsed) || parsed <= 0 || parsed > max || (integer && !Number.isInteger(parsed))))
+    (parsed !== null &&
+      (Number.isNaN(parsed) || parsed <= 0 || (min !== undefined && parsed < min) || parsed > max || (integer && !Number.isInteger(parsed))))
   const changed = parsed !== value
 
   async function save() {

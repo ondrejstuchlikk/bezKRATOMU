@@ -85,7 +85,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
   The *V těle teď* estimate (`src/lib/pk.ts`) reveals when someone dosed, so it is only ever computed from
   the user's **own** doses and shown to them: in the browser, and (since 0016, user's decision 2026-11-07)
   in SQL `private.pk_level` for that user's own push notifications. Never compute or show it for other users,
-  and never expose it through an RPC.
+  and never expose it through an RPC. The same applies to the caffeine estimate (`src/lib/caffeinePk.ts`).
 - **Logic exists twice (SQL + TS).** Changing plan or scoring rules means changing the SQL *and*
   `src/lib/*.ts`, then running both test suites. The demo backend must mirror the real backend's rules and
   privacy filtering.
@@ -108,7 +108,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0018 applied (as of 2026-11-08). In the SQL Editor, 0017 shows one `NULL` row per account
+- Live DB has 0001–0019 applied (as of 2026-11-08). In the SQL Editor, 0017 shows one `NULL` row per account
   (the seeding `select`); that is success, not an error.
 - Supabase grants everything on new `public` tables to `anon`/`authenticated` by default: every new table
   needs `revoke all … from anon, authenticated` and explicit column grants (see 0002, 0017).
@@ -194,8 +194,9 @@ Marek, Bára — all PIN `123456`.
   Planned order: caffeine (done) → nicotine (done) → caffeine body model.
 - Caffeine body model: report `docs/caffeine-pk-model/caffeine-pk-model.pdf` (LaTeX source, `model.py`,
   `ts_constants.json`, `numbers.tex`/`tables.tex` generated). Option A: one compartment, ka 4.42/h, t1/2 5.20 h
-  (median of 25 control groups), V 0.669 L/kg, sleep reference 0.52 mg/kg. Not deployed yet — the report's
-  "Deployment specification" section is the plan (needs a migration for weight + bedtime). Rebuild like the kratom
+  (median of 25 control groups), V 0.669 L/kg, sleep reference 0.52 mg/kg. In the app: `src/lib/caffeinePk.ts`
+  (constants copied from `ts_constants.json`; `caffeinePk.test.ts` imports the JSON and pins its check values),
+  `CaffeineLevelCard.tsx` + lazy `CaffeineChart.tsx`, weight/bedtime settings (`0019`). Own data only, like kratom. Rebuild like the kratom
   report: `python3 -I docs/caffeine-pk-model/model.py`, then `pdflatex` ×3 in that folder, delete aux files.
   PubMed via E-utilities works with `curl` (Python urllib HTTPS fails here); PK-DB (pk-db.com) timed out.
 - Caffeine body model decisions (2026-11-08): big number = mg of

@@ -82,6 +82,39 @@ export const cs = {
     hint: 'Kdykoli to změníš v Nastavení → Sledované látky. Mezi látkami pak přepínáš tlačítkem nahoře.',
   },
 
+  caffeineLevel: {
+    title: 'Kofein v těle (odhad)',
+    unit: 'kofeinu v těle',
+    /** "≈ 1 šálek kávy", "≈ 2 šálky", "≈ 5 šálků", "≈ 0,5 šálku" (decimals take the genitive singular). */
+    cups: (n: number) => `≈ ${formatNumber(n)} ${Number.isInteger(n) ? plural(n, 'šálek', 'šálky', 'šálků') : 'šálku'} kávy`,
+    absorbing: (mg: string) => `+ ${mg} mg se ještě vstřebává`,
+    none: 'Za poslední 3 dny nemáš zapsaný žádný kofein – podle modelu už v těle žádný není.',
+    legendPast: 'posledních 24 h',
+    legendFuture: 'když si už nic nedáš',
+    legendRef: 'referenční hladina pro spánek',
+    now: 'teď',
+    tooltip: 'Kofein v těle',
+    bedtime: (time: string, day: string) => `Ve ${time} (spánek, ${day})`,
+    bedtimeValue: (mg: string) => `≈ ${mg} mg`,
+    belowRef: (mg: string) => `Pod ${mg} mg`,
+    belowRefNow: 'už teď',
+    belowRefWhen: (day: string, time: string) => `${day} kolem ${time}`,
+    today: 'dnes',
+    tomorrow: 'zítra',
+    refHint: (mg: string) =>
+      `Kolem ${mg} mg a víc kofein podle studií v průměru zkracuje spánek. Citlivější lidé to můžou cítit i při méně – není to bezpečná hranice.`,
+    disclaimer:
+      'Hrubý odhad pro průměrného dospělého podle klinických studií. Není to měření – u různých lidí se kofein odbourává 2× až 3× rychleji nebo pomaleji (např. kouření, antikoncepce, těhotenství, některé léky).',
+    howTitle: 'Jak se to počítá?',
+    how: [
+      'Kofein z kávy i energeťáku se vstřebá skoro celý, nejvíc ho v těle je asi 50 minut po vypití.',
+      'Pak ho játra odbourávají: v průměru zmizí polovina asi za 5 hodin. Za 10 hodin zbývá čtvrtina, za 15 hodin osmina.',
+      'Velké číslo = kofein, který se už vstřebal a tělo ho ještě neodbouralo. Šálek kávy tu znamená 100 mg (skutečné šálky mají 50–300 mg).',
+      'Referenční hladina pro spánek vychází z velkého souhrnu 24 studií (2023): v průměru tolik kofeinu při usínání ještě nezkracuje spánek. Počítá se z tvé váhy (0,52 mg na kg).',
+      'Váhu a čas, kdy chodíš spát, si nastavíš v Nastavení (s vybraným kofeinem).',
+    ],
+  },
+
   nicotine: {
     forms: {
       cigarette: {
@@ -529,6 +562,11 @@ export const cs = {
     nicotineGroup: 'Nikotin',
     nicotinePrices: 'Ceny',
     nicotinePricesHint: 'Slouží jen k odhadu, kolik utratíš.',
+    caffeineLevel: 'Odhad kofeinu v těle',
+    weight: 'Moje váha',
+    weightHint: 'Nepovinné. Bez ní se počítá se 70 kg. Mění jen referenční hladinu pro spánek.',
+    bedtime: 'Kdy chodím spát',
+    bedtimeHint: 'Podle toho karta ukáže, kolik kofeinu budeš mít v těle při usínání.',
     caffeinePresets: 'Moje nápoje',
     caffeinePresetsHint: 'Kolik kofeinu má nápoj, který piješ. Pak ho zapíšeš jedním klepnutím, jako lžičku u kratomu. Úprava nezmění už zapsané záznamy.',
     addPreset: '+ Přidat nápoj',

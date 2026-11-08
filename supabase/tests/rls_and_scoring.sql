@@ -342,6 +342,18 @@ select public.expect_eq((select concat_ws(',', track_cigarettes, cigarette_pack_
 select public.expect_error($$update user_settings set cigarette_pack_size = 0$$, 'pack size 0');
 reset role;
 
+-- ===== Caffeine estimate settings (0019) =====
+select public.expect_eq((select concat_ws(',', coalesce(body_weight_kg::text, 'default'), bedtime) from user_settings where user_id = :'e'),
+  'default,23:00', 'caffeine estimate defaults');
+set role authenticated;
+update user_settings set body_weight_kg = 82.5, bedtime = '22:30';
+select public.expect_eq((select concat_ws(',', body_weight_kg, bedtime) from user_settings), '82.5,22:30', 'weight and bedtime saved');
+select public.expect_error($$update user_settings set bedtime = '25:00'$$, 'invalid bedtime');
+select public.expect_error($$update user_settings set body_weight_kg = 10$$, 'weight too low');
+update user_settings set bedtime = '20:00' where user_id = :'e';  -- RLS: affects 0 rows
+reset role;
+select public.expect_eq((select bedtime from user_settings where user_id = :'e'), '23:00', 'cannot change others bedtime');
+
 -- ===== Anonymous =====
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;

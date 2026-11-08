@@ -34,6 +34,9 @@ export interface MySettings {
   cigarettePackSize: number
   snusPackPrice: number | null
   snusPackSize: number
+  /** For the caffeine estimate: body weight (null = default 70 kg) and bedtime ("HH:MM", Prague). */
+  bodyWeightKg: number | null
+  bedtime: string
   /** Latest version of the "new substances" window the user has closed (SUBSTANCES_INTRO_VERSION). */
   substancesIntroSeen: number
 }

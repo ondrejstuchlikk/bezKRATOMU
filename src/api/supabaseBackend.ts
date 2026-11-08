@@ -219,7 +219,8 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
           .from('user_settings')
           .select(
             'teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level, track_caffeine, substances_intro_seen, ' +
-              'track_cigarettes, track_snus, cigarette_pack_price, cigarette_pack_size, snus_pack_price, snus_pack_size',
+              'track_cigarettes, track_snus, cigarette_pack_price, cigarette_pack_size, snus_pack_price, snus_pack_size, ' +
+              'body_weight_kg, bedtime',
           )
           .eq('user_id', id)
           .single(),
@@ -240,6 +241,8 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         cigarettePackSize: Number(settings.cigarette_pack_size ?? 20),
         snusPackPrice: num(settings.snus_pack_price),
         snusPackSize: Number(settings.snus_pack_size ?? 20),
+        bodyWeightKg: num(settings.body_weight_kg),
+        bedtime: (settings.bedtime as string | null) ?? '23:00',
       }
     },
 
@@ -262,6 +265,8 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       if (patch.cigarettePackSize !== undefined) settings.cigarette_pack_size = patch.cigarettePackSize
       if (patch.snusPackPrice !== undefined) settings.snus_pack_price = patch.snusPackPrice
       if (patch.snusPackSize !== undefined) settings.snus_pack_size = patch.snusPackSize
+      if (patch.bodyWeightKg !== undefined) settings.body_weight_kg = patch.bodyWeightKg
+      if (patch.bedtime !== undefined) settings.bedtime = patch.bedtime
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))

@@ -5,6 +5,14 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-08
 
+- **New card "Kofein v těle (odhad)" on Dnes when Kofein is selected.** It shows roughly how much caffeine is in
+  your body right now (mg and cups of coffee, plus what is still being absorbed), a chart of the last 24 hours
+  with the curve ahead "if you have nothing more", how much will be left at your bedtime, and when it drops
+  below a reference level for sleep (about 36 mg for 70 kg; from studies, not a safe limit). Set your weight and
+  bedtime in *Nastavení* with Kofein selected (default 70 kg and 23:00). It's an estimate for an average adult,
+  computed only from your own entries. The research behind it is in `docs/caffeine-pk-model/caffeine-pk-model.pdf`.
+  Migration: `0019_caffeine_level.sql` (run it **before** this version goes live, or Nastavení shows an error).
+
 - **You can now track nicotine: cigarettes and sibiř.** A window offers it once after the update (people who
   never saw the caffeine window get caffeine offered there too); it can also be switched in *Nastavení →
   Sledované látky*, cigarettes and sibiř separately. Then *🚬 Nikotin* appears in the switcher at the top.
