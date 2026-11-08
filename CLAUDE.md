@@ -192,6 +192,17 @@ Marek, Bára — all PIN `123456`.
   window). Stats: count per day + chart, time between (both forms together, plus counts per form), money spent
   (price per pack + pieces per pack; defaults cigarettes 160 Kč / 20, sibiř 130 Kč / 20). No note/feeling.
   Planned order: caffeine (done) → nicotine (done) → caffeine body model.
+- Caffeine body model: report `docs/caffeine-pk-model/caffeine-pk-model.pdf` (LaTeX source, `model.py`,
+  `ts_constants.json`, `numbers.tex`/`tables.tex` generated). Option A: one compartment, ka 4.42/h, t1/2 5.20 h
+  (median of 25 control groups), V 0.669 L/kg, sleep reference 0.52 mg/kg. Not deployed yet — the report's
+  "Deployment specification" section is the plan (needs a migration for weight + bedtime). Rebuild like the kratom
+  report: `python3 -I docs/caffeine-pk-model/model.py`, then `pdflatex` ×3 in that folder, delete aux files.
+  PubMed via E-utilities works with `curl` (Python urllib HTTPS fails here); PK-DB (pk-db.com) timed out.
+- Caffeine body model decisions (2026-11-08): big number = mg of
+  caffeine still in the body, plus "≈ X šálků kávy"; one population-average half-life (no smoking/pill/pregnancy
+  adjustment); caffeine only (no paraxanthine line); sleep: projection at the user's bedtime plus a soft reference
+  level from the literature, labelled as such; body weight default 70 kg, editable in Nastavení. Report in English,
+  LaTeX → PDF in `docs/caffeine-pk-model/` with `model.py`, peer-reviewed sources only.
 - Types: `Substance` = what the switcher shows (`kratom | caffeine | nicotine`); `IntakeSubstance` = the value in
   `public.intakes.substance` (`caffeine | cigarette | snus`). `listMyIntakes` takes a list of kinds.
 

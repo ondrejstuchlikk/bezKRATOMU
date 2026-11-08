@@ -1,0 +1,24 @@
+{
+  "model": "one-compartment, first-order absorption and elimination, F = 1",
+  "KA_PER_H": 4.4209,
+  "KE_PER_H": 0.1333,
+  "T_HALF_H": 5.2,
+  "V_L_PER_KG": 0.669,
+  "DEFAULT_WEIGHT_KG": 70.0,
+  "SLEEP_REF_MG_PER_KG": 0.5196,
+  "CUP_MG": 100.0,
+  "IGNORE_DOSES_OLDER_THAN_H": 72,
+  "formulas": {
+    "body_mg": "sum_i D_i * KA/(KA-KE) * (exp(-KE*t_i) - exp(-KA*t_i)), t_i = hours since dose i (t_i >= 0)",
+    "gut_mg": "sum_i D_i * exp(-KA*t_i)",
+    "plasma_mg_per_l": "body_mg / (V_L_PER_KG * weight_kg)",
+    "sleep_ref_mg": "SLEEP_REF_MG_PER_KG * weight_kg",
+    "cups": "body_mg / CUP_MG"
+  },
+  "check_values": {
+    "150mg_after_1h": 133.5,
+    "150mg_after_6h": 69.51,
+    "150mg_after_12h": 31.24,
+    "gut_150mg_after_0.5h": 16.45
+  }
+}
