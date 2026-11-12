@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { kratomEffectGrams, levelPct, pkAt, pkSeries, pkTimesBelow, PK_PEAK_NM_PER_G, PK_REF_NM_PER_G_DAY, type PkDose } from './pk'
+import constants from '../../docs/pk-model/ts_constants.json'
+import {
+  kratomEffectGrams,
+  levelPct,
+  pkAt,
+  pkAverageGramsPerDay,
+  pkRangeVariants,
+  pkSeries,
+  pkTimesBelow,
+  pkVariantLevel,
+  PK_CENTRAL,
+  PK_HEAVY_G_PER_DAY,
+  PK_LAMBDA,
+  PK_PEAK_NM_PER_G,
+  PK_REF_NM_PER_G_DAY,
+  PK_VARIANTS,
+  type PkDose,
+} from './pk'
 
 // Independent check: integrate the model ODEs (docs/pk-model/kratom-pk-model.pdf, eqs. 1–3) with RK4
 // from the raw published parameters, and compare with the closed-form constants in pk.ts.
@@ -11,23 +28,24 @@ const MG_PER_G = 16 // 1.6 % mitragynine
 
 type State = [number, number, number, number, number] // gut, MG central, MG periph., 7-OH central, 7-OH periph. (mg)
 
-function deriv([g, a1, a2, a3, a4]: State): State {
-  const e1 = (P.CL / P.Vc) * a1
-  const q1 = (P.Q / P.Vc) * a1 - (P.Q / P.Vp) * a2
-  const q2 = (P.Qm / P.Vcm) * a3 - (P.Qm / P.Vpm) * a4
-  return [-P.ka * g, P.ka * g - e1 - q1, q1, P.Fm * e1 - (P.CLm / P.Vcm) * a3 - q2, q2]
+/** Disposition clearances multiplied by `s` (the range variants, report § "Regular and heavy users"). */
+function deriv([g, a1, a2, a3, a4]: State, s = 1): State {
+  const e1 = ((s * P.CL) / P.Vc) * a1
+  const q1 = ((s * P.Q) / P.Vc) * a1 - ((s * P.Q) / P.Vp) * a2
+  const q2 = ((s * P.Qm) / P.Vcm) * a3 - ((s * P.Qm) / P.Vpm) * a4
+  return [-P.ka * g, P.ka * g - e1 - q1, q1, P.Fm * e1 - ((s * P.CLm) / P.Vcm) * a3 - q2, q2]
 }
 
 /** State after `hours` for 1 mg MG put in the gut at time 0. */
-function integrate(hours: number, dt = 0.002): State {
+function integrate(hours: number, dt = 0.002, s = 1): State {
   let x: State = [1, 0, 0, 0, 0]
   const add = (a: State, b: State, h: number) => a.map((v, i) => v + h * b[i]) as State
   for (let t = 0; t < hours - 1e-9; t += dt) {
     const h = Math.min(dt, hours - t)
-    const k1 = deriv(x)
-    const k2 = deriv(add(x, k1, h / 2))
-    const k3 = deriv(add(x, k2, h / 2))
-    const k4 = deriv(add(x, k3, h))
+    const k1 = deriv(x, s)
+    const k2 = deriv(add(x, k1, h / 2), s)
+    const k3 = deriv(add(x, k2, h / 2), s)
+    const k4 = deriv(add(x, k3, h), s)
     x = x.map((v, i) => v + (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])) as State
   }
   return x
@@ -149,5 +167,83 @@ describe('kratomEffectGrams', () => {
     const peakOf3g = Math.max(...pkSeries([dose(0, 3)], T0, T0 + 4 * H, 1).map((p) => kratomEffectGrams(p.levelNM)))
     expect(peakOf3g).toBeCloseTo(3, 2)
     expect(kratomEffectGrams(pkAt([dose(0, 3)], T0 + 6 * H).levelNM)).toBeCloseTo(1.3, 1)
+  })
+})
+
+describe('uncertainty range (model version 2)', () => {
+  const variants = [
+    ['fast', PK_VARIANTS.fast, 20],
+    ['slow', PK_VARIANTS.slow, 60],
+    ['slowHeavy', PK_VARIANTS.slowHeavy, 84],
+  ] as const
+
+  it('uses the constants written by docs/pk-model/model.py', () => {
+    expect([...PK_LAMBDA]).toEqual(constants.lambda_per_h)
+    expect(PK_HEAVY_G_PER_DAY).toBe(constants.heavy_g_per_day)
+    for (const [name, v] of variants) {
+      expect([...v.lambda]).toEqual(constants.variants[name].lambda_per_h)
+      expect([...v.level]).toEqual(constants.variants[name].level_nM_per_g)
+      expect(v.ref).toBe(constants.variants[name].R_daily_mean_nM_per_g_per_day)
+    }
+  })
+
+  for (const [name, v, tHalf] of variants) {
+    // Scaling every disposition clearance by s scales the terminal rate constant by s.
+    const s = Math.log(2) / tHalf / PK_LAMBDA[0]
+    it(`${name}: terminal half-life ${tHalf} h and the closed form matches the scaled ODEs`, () => {
+      expect(Math.log(2) / Math.min(...v.lambda)).toBeCloseTo(tHalf, 6)
+      for (const hours of [1, 6, 24, 120]) {
+        const x = integrate(hours, 0.002, s)
+        const cMG = (F_REL * MG_PER_G * 1000 * x[1]) / P.Vc
+        const cOH = (S_OH * F_REL * MG_PER_G * 1000 * x[3]) / P.Vcm
+        expect(pkVariantLevel(v, [dose(0, 1)], T0 + hours * H)).toBeCloseTo((cMG * 1000) / 398.5 + (W * cOH * 1000) / 414.5, 3)
+      }
+    })
+
+    it(`${name}: its own reference is the steady-state daily mean at 1 g/day`, () => {
+      const doses = Array.from({ length: 30 }, (_, d) => [dose(24 * d + 8, 0.5), dose(24 * d + 20, 0.5)]).flat()
+      let sum = 0
+      let n = 0
+      for (let t = T0 + 29 * 24 * H; t < T0 + 30 * 24 * H; t += 60_000) {
+        sum += pkVariantLevel(v, doses, t)
+        n++
+      }
+      // 21-day memory cuts off < 1 % of the slowest variant's tail.
+      expect(sum / n / v.ref).toBeGreaterThan(0.99)
+      expect(sum / n / v.ref).toBeLessThan(1.001)
+    })
+  }
+
+  it('after stopping 6 g/day, the level falls below 50 % of the baseline fastest at the fast end (report table)', () => {
+    const doses = Array.from({ length: 30 }, (_, d) =>
+      [[8, 0.4], [14, 0.35], [20.5, 0.25]].map(([h, f]) => dose(24 * d + h, 6 * f)),
+    ).flat()
+    const last = T0 + (29 * 24 + 20.5) * H
+    const hoursTo50 = (v: typeof PK_CENTRAL) => (pkTimesBelow(doses, last, [0.5 * v.ref * 6], 5, v)[0]! - last) / H
+    const [fast, central, slow, heavy] = [PK_VARIANTS.fast, PK_CENTRAL, PK_VARIANTS.slow, PK_VARIANTS.slowHeavy].map(hoursTo50)
+    expect(fast).toBeCloseTo(7.1, 0)
+    expect(central).toBeCloseTo(10.9, 0)
+    expect(slow).toBeCloseTo(15.1, 0)
+    expect(heavy).toBeCloseTo(19.7, 0)
+  })
+
+  it('central model through the variant helpers equals pkAt', () => {
+    const doses = [dose(0, 2), dose(5, 1)]
+    expect(pkVariantLevel(PK_CENTRAL, doses, T0 + 9 * H)).toBeCloseTo(pkAt(doses, T0 + 9 * H).levelNM, 9)
+  })
+
+  it('averages grams over 14 days, or since the first dose when the history is shorter', () => {
+    const t = T0 + (29 * 24 + 12) * H
+    const steady = Array.from({ length: 30 }, (_, d) => dose(24 * d, 10)) // 14 of them in the last 14 days
+    expect(pkAverageGramsPerDay(steady, t)).toBeCloseTo(10, 9)
+    const fresh = [dose(27.5 * 24, 15), dose(28.5 * 24, 15)] // first dose two days ago
+    expect(pkAverageGramsPerDay(fresh, t)).toBeCloseTo(15, 9)
+    expect(pkAverageGramsPerDay([dose(31 * 24, 50)], t)).toBe(0) // future doses don't count
+  })
+
+  it('extends the slow end above 12 g/day', () => {
+    expect(pkRangeVariants(12).slow).toBe(PK_VARIANTS.slow)
+    expect(pkRangeVariants(12.1).slow).toBe(PK_VARIANTS.slowHeavy)
+    expect(pkRangeVariants(30).fast).toBe(PK_VARIANTS.fast)
   })
 })

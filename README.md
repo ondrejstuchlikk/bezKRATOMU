@@ -135,14 +135,17 @@ sends. Lock-screen texts never contain grams.
   it moves exactly with the level. A small line shows the mg of mitragynine and 7-OH not yet eliminated. *Hladina* is
   the same combined level in %, where 100 % = the average level at the plan's baseline. The chart shows the last 12, 24 (default) or 48 hours, or 3/5/7 days (*Více* menu), plus a 12-hour projection; the choice
   is kept in `localStorage`. Below it: when the level would fall under the next steps (75/50/25/10 % of
-  baseline; without a plan or below 10 %: to half and a tenth of now) if no more is taken. The card runs only
+  baseline; without a plan or below 10 %: to half and a tenth of now) if no more is taken, each with a range
+from a faster and a slower variant of the model (terminal half-life 20 h and 60 h; 84 h when the last 14 days
+averaged more than 12 g/day), also drawn as a light band around the projection. The card runs only
   in the browser and only on your own doses. The opt-in notifications (`0016_level_notifications.sql`) compute
   the same combined line in SQL (`private.pk_level`), only for the owner's own pushes: a morning recap (8–10 h:
   yesterday's highest level vs. the day before) and at most one milestone a day (9–22 h): the lowest level in
   3/7/14/30 days, or below 75/50/25/10 % of baseline for the first time in the plan. The night is checked in one
   go at the first check after 9:00, so nobody is woken up. The literature review, maths,
-  validation and limits are in `docs/pk-model/kratom-pk-model.pdf`; `docs/pk-model/model.py` regenerates
-  the report's numbers and the constants used in `pk.ts`.
+  validation and limits are in `docs/pk-model/kratom-pk-model.pdf` (section 9: the review of studies on regular
+  and heavy users behind the range); `docs/pk-model/model.py` regenerates the report's numbers and the constants
+  used in `pk.ts`. Publishers' PDFs used for the review are kept locally in `papers/` (gitignored).
 
 ## Database tests
 
@@ -166,5 +169,6 @@ user's data. Requires `brew install postgresql@17` and a running server.
 - No PIN reset, no account deletion UI, no data export.
 - The *V těle teď* estimate is a population average for one powder strength (1.6 % mitragynine);
   it has no per-user settings (body weight, product strength) and doesn't know doses taken before
-  someone started logging.
+  someone started logging. There are no measurements in long-term users above about 12 g/day, so for them the
+  projection's range is an extrapolation.
 - A 6-digit PIN is only as strong as Supabase's sign-in rate limiting; keep the app link among friends.

@@ -3,6 +3,17 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-12
+
+- **"V těle teď" now shows how uncertain the drop is.** How fast kratom leaves the body differs between studies
+  and between people, so the card now shows a range next to each "when will it drop" time (*rozmezí …*) and a light
+  band around the dashed line in the chart. The fast end assumes a half-life of 20 hours and the slow end 60 hours.
+  If you've averaged more than 12 g a day over the last 14 days, the slow end goes to 84 hours and a short note
+  explains why: no study has measured amounts that large. The main number, the % and the notifications haven't
+  changed. Behind it is a new literature review of studies on long-term and heavy users (section 9 of
+  `docs/pk-model/kratom-pk-model.pdf`). It found that the model holds for regular users and for single doses up
+  to 12 g, but that nobody has measured long-term users taking more than about 12 g a day. No migration.
+
 ## 2026-11-08
 
 - **New card "Kofein v těle (odhad)" on Dnes when Kofein is selected.** It shows roughly how much caffeine is in

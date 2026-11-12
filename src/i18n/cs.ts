@@ -417,11 +417,17 @@ export const cs = {
     range: (h: number) => (h < 72 ? `${h} h` : h / 24 < 5 ? `${h / 24} dny` : `${h / 24} dní`),
     rangeMore: 'Více',
     legendFuture: 'když si už nic nevezmeš',
+    legendRange: 'rozmezí odhadu',
     projectionTitle: 'Když si už nic nevezmeš, hladina klesne (odhad):',
     projectionPct: (pct: number) => `pod ${pct} %`,
     projectionHalf: 'na polovinu současné',
     projectionTenth: 'na desetinu současné',
     projectionWhen: (day: string, time: string) => `${day} kolem ${time}`,
+    /** Fast and slow end of the estimate: "rozmezí dnes 23:00 – zítra 14:10". */
+    projectionRange: (early: string, late: string) => `rozmezí ${early} – ${late}`,
+    rangeLater: 'za víc než 3 týdny',
+    heavyNote: (g: number) =>
+      `Za posledních 14 dní bereš v průměru víc než ${g} g denně. Tolik zatím žádná studie neměřila, proto je pomalejší konec rozmezí posunutý ještě dál.`,
     today: 'dnes',
     tomorrow: 'zítra',
     tooltipLevel: 'Hladina',
@@ -432,6 +438,7 @@ export const cs = {
     howTitle: 'Jak se to počítá?',
     how: [
       'Po dávce se mitragynin vstřebá asi za 1–1,5 hodiny. Pak hladina v krvi rychle klesá zhruba 6 hodin a potom už jen pomalu, několik dní.',
+      'Model vychází ze studií na zdravých dobrovolnících a ověřený je i na lidech, kteří kratom berou roky, a na jednorázových dávkách až 12 g. Jak rychle hladina klesá, se ale mezi studiemi i lidmi liší, proto je u odhadu poklesu rozmezí (světlý pás v grafu): rychlejší konec odpovídá poločasu 20 h, pomalejší 60 h.',
       'Játra z něj vyrábějí 7-OH-mitragynin. Je ho málo, ale na opioidní receptory působí asi 10× silněji, takže křivka započítává obě látky podle síly účinku.',
       'Gramy kratomu (podle účinku) = jak silně teď kratom působí, převedeno na gramy prášku: dávka 1 g ukáže „1 g“ ve chvíli, kdy působí nejvíc (asi 1,5–2 h po dávce), a pak číslo klesá stejně jako hladina. Není to množství prášku, které máš v těle.',
       'Miligramy mitragyninu a 7-OH-mitragyninu (malý řádek) = kolik z toho, co sis vzal(a), tělo ještě neodbouralo. Předpokládá se, že se vstřebalo všechno, takže je to spíš horní odhad. Většina je uložená ve tkáních, ne v krvi a skoro nepůsobí.',

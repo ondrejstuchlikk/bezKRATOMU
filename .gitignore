@@ -29,3 +29,6 @@ prompt.txt
 
 # Supabase CLI state
 supabase/.temp
+
+# Publishers' PDFs used for the literature review (copyright, local only)
+papers/

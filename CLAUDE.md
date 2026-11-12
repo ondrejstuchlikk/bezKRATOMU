@@ -56,6 +56,7 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 | `src/lib/units.ts` | `formatGrams`, `formatNumber`, `formatPct`, teaspoon conversion, `MAX_DOSE_G` |
 | `src/lib/plan.ts`, `scoring.ts`, `days.ts` | TS mirrors of the SQL plan/scoring logic (used by demo mode, unit-tested) |
 | `src/lib/pk.ts` | Kratom-in-the-body estimate (closed-form sums of exponentials). Constants come from `docs/pk-model/ts_constants.json`, written by `docs/pk-model/model.py`; the full write-up is `docs/pk-model/kratom-pk-model.pdf` (LaTeX source next to it). Change the model there first, then copy the constants, then rerun `pk.test.ts` |
+| `src/lib/pk.ts` (model v2) | `PK_VARIANTS` (fast 20 h / slow 60 h / slowHeavy 84 h terminal half-life, each with its own reference `ref`) give the range for the projection and the chart band; `pkAverageGramsPerDay` + `pkRangeVariants` switch to slowHeavy above 12 g/day (14-day average). The central curve and SQL `private.pk_level` are unchanged by v2 |
 | `src/components/LevelCard.tsx` | The *V těle teď* card on Dnes: big number = `kratomEffectGrams` (combined level ÷ peak of 1 g, user's choice 2026-11-07), small line = mg mitragynine + 7-OH; range picker in `LevelRangePicker.tsx` (12/24/48 h + *Více*: 3/5/7 days); "when will it drop" projection via `pkTimesBelow`; its chart is `LevelChart.tsx`, lazy-loaded so Recharts stays out of the first page load |
 | `supabase/migrations/0016_level_notifications.sql` | SQL copy of the combined line (`private.pk_level`, same constants as `pk.ts`) + morning recap / milestone pushes (`private.claim_level_notifications(p_now)`). Changing the model constants means changing both; `pk.test.ts` and the SQL checks pin the same numbers |
 | `src/lib/substances.ts`, `src/hooks/substance.ts` | Substances other than kratom (caffeine so far): the `Substance` type, which ones a user tracks, and the per-device "which substance do the tabs show" context (`useSubstance`). Switcher pill: `SubstanceSwitcher.tsx`; one-time announcement: `SubstancesIntro.tsx` (`SUBSTANCES_INTRO_VERSION`) |
@@ -174,6 +175,13 @@ Marek, Bára — all PIN `123456`.
   (it is a TeX Live install at `/Library/TeX/texbin`) and delete the `.aux/.log/.toc/.out` files.
   To look at the pages, render them with `pypdfium2` (installed for `python3`); there is no `pdftoppm`.
 - Keep the wording honest: an estimate, not a measurement, and never a cue for when to dose.
+- Model version 2 (2026-11-12): all app users are long-term daily users (1–4 years, some once 30+ g/day). A full
+  literature search (PubMed, Europe PMC full text, OpenAlex citations, preprints, ClinicalTrials.gov) found no
+  time-resolved PK data above ~12 g/day; regular-user and 1–12 g single-dose data fit the model's shape, with about
+  2× higher absolute exposure (cancels out of everything displayed, so constants were kept). Per-user dose classes
+  were dropped with the user's agreement (no data support them); instead a range (report §9.5). Speciociliatine stays out (user's
+  decision). The Johns Hopkins cessation trial NCT06089980 (results ~2028) is the study to watch.
+- Paywalled PDFs the user supplies go into `papers/` (gitignored, never commit them). The user has institutional access.
 - PMC (`pmc.ncbi.nlm.nih.gov`) sometimes shows a bot check to WebFetch; NCBI E-utilities
   (`eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=…`) still return abstracts.
 

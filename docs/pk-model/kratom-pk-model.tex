@@ -20,8 +20,8 @@
 
 \title{\textbf{Estimating mitragynine and 7-hydroxymitragynine\\exposure from self-reported kratom leaf-powder doses}\\[4pt]
 \large Literature review, pharmacokinetic model, calibration and implementation specification\\for the \emph{bezKRATOMU} application}
-\author{Technical report (model version 1)}
-\date{6 November 2026}
+\author{Technical report (model version 2)}
+\date{6 November 2026; version 2: 12 November 2026}
 
 \begin{document}
 \maketitle
@@ -44,6 +44,16 @@ potency-weighted index of $\mu$-opioid receptor activity, which is displayed on 
 the curve for any dosing history is an exact superposition of a five-term sum of exponentials,
 whose coefficients are tabulated here. The result is a population-average estimate, not a measurement:
 between-subject variability in the source studies is 5--10-fold.
+
+\smallskip\noindent
+\textbf{Version 2} (\S\ref{sec:heavy}) asks whether the model holds for the app's actual users, who have taken kratom
+daily for 1--4 years, some at more than 30\,g/day. A systematic search (PubMed, Europe PMC full text, OpenAlex citation
+tracking, preprint servers, ClinicalTrials.gov) found no time-resolved PK data in long-term heavy users. Data from regular users
+at typical doses (three studies) and single doses up to 12\,g (one study) show that the model's \emph{shape} and linearity hold;
+only its absolute exposure is about $2\times$ too low under real-world (fed) conditions, a factor that cancels out of every
+quantity the app displays. The central curve is therefore unchanged. What remains uncertain is how fast the level falls, so the
+app now shows a range for the projection (terminal half-life 20--60\,h, extended to \ntslowheavy\,h for users above
+\nheavyg\,g/day).
 \end{abstract}
 
 \tableofcontents
@@ -94,6 +104,11 @@ Mongar 2024~\cite{mongar2024} & 15--16 healthy adults; tea, 23.6\,mg MG; $\pm$ i
 Huestis 2024~\cite{huestis2024} & 8--13 per arm, healthy adults; capsules 0.5--4\,g leaf (6.65--53.2\,mg MG); SD and 15 daily doses & $t_{\max}$ 1.0--1.3\,h; $C_{\max}$ dose-proportional; median $t_{1/2}$ 3.7$\to$42.9\,h (SD), 14.6$\to$61.2\,h (MD); steady state 8--9\,d & $t_{\max}$ 1.2--1.8\,h; $t_{1/2}$ 1.7--4.7\,h (SD); ratio to MG 0.2--0.3 (SD), 0.15--0.21 (MD) \\
 Huestis 2026~\cite{huestis2026} & Extract (39.5\,\% MG), 9.9--59.2\,mg MG; SD and 15 MD & $C_{\max}$ 32.8--196\,ng/mL; $t_{\max}$ 1.3--2\,h; AUC $<1.4\times$ proportional; higher exposure than leaf & $C_{\max}$ 6.8--30.5\,ng/mL; $t_{\max}$ 1.3--2.3\,h \\
 Notario 2026~\cite{notario2026} & Model fitted (Bayesian, HMC) to Mongar 2024 data & linked parent--metabolite, 2+2 compartments, first-order absorption & formation fraction $F_m=0.65$ \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{Added in version 2 (\S\ref{sec:heavy})}} \\
+Reissig 2026~\cite{reissig2026} & 6 per cohort, opioid-experienced non-dependent adults; capsules 1--12\,g leaf ($\sim$1\,\% MG, 10--123\,mg); single dose, fed & $C_{\max}$ 42--379\,ng/mL; AUC$_{0-48}$/mg constant (\nraucmin--\nraucmax); $t_{1/2}$ 16--22\,h (48\,h sampling) & $C_{\max}$ 6.7--58\,ng/mL \\
+Smith 2024~\cite{smith2024} & 10 regular users (6.6\,y, 2--14\,y); own product, usual dose 1.1--10.9\,g & post-dose 176 (37--396)\,ng/mL & 34 (3--78)\,ng/mL \\
+Kanumuri 2026~\cite{kanumuri2026} & 4 regular users (Johns Hopkins trial); usual dose 27--54\,mg MG & pre-dose 27--222\,ng/mL; $t_{\max}$ 1--1.5\,h; $t_{1/2}$ 17--35\,h & AUC ratio to MG 0.11--0.13 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -396,6 +411,196 @@ the moment ``now'', and the projection if no further dose is taken (dashed); tri
 \label{fig:taper}
 \end{figure}
 
+\section{Regular and heavy users (version 2)}\label{sec:heavy}
+
+\subsection{Question}
+Every user of the app has taken kratom leaf powder daily for more than a year (up to about four years), several at peak amounts
+above 30\,g/day. Version~1 was calibrated on Huestis~\emph{et al.}~\cite{huestis2024}, whose participants were kratom-naive or
+had not used kratom for $\ge$12 months, were non-smokers without a history of drug use, took at most 4\,g/day for 15 days and were
+fasted. At 1.6\,\% MG, 10--30\,g/day is 160--480\,mg MG per day, three to nine times the highest repeated dose ever studied
+(53.2\,mg). We asked: (i) do long-term daily users handle mitragynine differently, and (ii) is there any PK information for
+the amounts our users take? The user also proposed choosing model parameters per user from the logged intake; whether the data
+support this is part of (i)--(ii).
+
+\subsection{Search}
+Searches were run on 12 November 2026.
+\begin{itemize}
+\item \textbf{PubMed} (E-utilities): kratom/mitragynine/7-OH/speciociliatine/ketum/biak combined with PK, plasma, serum, blood,
+urine, hair, oral fluid, half-life, clearance; with chronic, regular, long-term, daily, dependent, heavy, users; with CYP induction,
+PXR, steady state, multiple dose; case reports with measured concentrations; Malaysian, Thai and Indonesian user studies; author
+searches for the main clinical groups. About 600 unique records.
+\item \textbf{Europe PMC} full-text search (body text of open-access papers mentioning ng/mL together with daily use), which also
+covers preprints.
+\item \textbf{OpenAlex} forward citations of the seven key human PK papers (293 citing works), keyword searches, and a filter for
+preprints (medRxiv, bioRxiv, Research Square, OSF, ChemRxiv, Preprints.org, SSRN).
+\item \textbf{ClinicalTrials.gov}: all registered kratom/mitragynine studies (15) and posted results.
+\item Full texts were read for every study with human concentration data; five were obtained through institutional access.
+The supplement of Reissig 2026~\cite{reissig2026} (Supplemental Digital Content 3) was also read: it gives plasma curves of the
+minor alkaloids paynantheine, speciogynine and speciociliatine (figures only), pupil diameter, and subjective-effect scores
+(drug liking and ``high'' differed from placebo only at 12\,g). It has no further mitragynine or 7-OH concentrations, so it does not
+change the comparison below. One case letter with measured plasma levels (Rianprakaisang 2023) could not be obtained.
+\end{itemize}
+Studies were kept if they reported mitragynine (or 7-OH) concentrations in humans by a specific chromatographic assay together with
+the dose or the use pattern. Animal, \emph{in vitro}, and post-mortem studies were excluded from the quantitative analysis.
+
+\subsection{What exists}
+\begin{table}[H]\centering\small
+\caption{Human data relevant to regular and heavy users. Only the first four can be compared quantitatively with the model.}
+\label{tab:heavylit}
+\begin{tabular}{@{}p{3.0cm}p{5.6cm}p{6.8cm}@{}}
+\toprule
+Study & Population & Use for the model \\
+\midrule
+Reissig 2026~\cite{reissig2026} & single doses 1--12\,g leaf, fed, 48\,h sampling; not dependent & highest doses with PK; linearity, Table~\ref{tab:reissig} \\
+Trakulsrichai 2015~\cite{trak2015} & 9 Thai men, 0.6--5\,y of use, 1--9 leaves/day; 7 days on a fixed tea dose & peaks at steady state, Table~\ref{tab:regular} \\
+Smith 2024~\cite{smith2024} & 10 US regular users, 2--14\,y of use, usual morning dose & post-dose levels, 7-OH ratio, Table~\ref{tab:regular} \\
+Kanumuri 2026~\cite{kanumuri2026} & 4 US regular users, usual dose, serial sampling & pre-dose levels, half-lives, Table~\ref{tab:regular} \\
+\midrule
+Wahyono 2025~\cite{wahyono2025} & 64 Indonesian users, mostly 2--5\,y, often $>$21 leaves/day; serum by ELISA & not usable: mean 16\,$\mu$g/mL, about 100$\times$ above every LC-MS value, so the antibody also detects metabolites; its ``no relation to intake'' is uninformative \\
+Ang 2026~\cite{ang2026} & Malaysian dependent users, spot urine (58--18\,000\,ng/mL) & not usable: no amounts or timing \\
+Leong Abdullah 2020~\cite{leong2020} & 100 Malaysian regular users, estimated 434\,mg MG/day & intake only (confirms that 400+\,mg/day users exist); no blood levels \\
+Kedzierski 2023~\cite{kedzierski2023} & 60 drivers, blood 10.5--960 (median 58)\,ng/mL & plausibility only (no doses); same order as the regular-user levels in Table~\ref{tab:regular} \\
+Peřan 2023~\cite{peran2023}, Holton 2024~\cite{holton2024} & Czech poisonings; one user at $\sim$100\,g/day for 3\,y & no concentrations \\
+NCT06089980~\cite{nct06089980} & regular users stopping under observation, serial blood & the decisive study for the decline after stopping; recruiting, completion 2028 \\
+\bottomrule
+\end{tabular}
+\end{table}
+No preprint and no registered trial with posted results adds human PK data. In short: \textbf{no time-resolved PK data exist for
+long-term users taking more than about 10--12\,g/day.} The closest evidence is single doses up to 12\,g in people who do not use
+daily, and regular users at their usual (smaller) doses.
+
+\subsection{Comparison with the model}\label{sec:heavyval}
+The version-1 model (unchanged, $F_{\mathrm{rel}}=\nFrel$ from fasted capsules) was used to predict each study.
+
+\begin{table}[H]\centering\small
+\caption{Reissig 2026~\cite{reissig2026}: single doses (fed), observed means vs.\ model. $C_{\max}$ in ng/mL, AUC$_{0-48}$ in ng\,h/mL.
+Last column: observed/model ratio of the MG AUC.}
+\label{tab:reissig}
+\begin{tabular}{@{}rr rr rr rr rr r@{}}
+\toprule
+ & & \multicolumn{2}{c}{MG $C_{\max}$} & \multicolumn{2}{c}{MG AUC} & \multicolumn{2}{c}{7-OH $C_{\max}$} & \multicolumn{2}{c}{7-OH AUC} & \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+g & mg MG & obs & model & obs & model & obs & model & obs & model & ratio \\
+\midrule
+\tabReissig
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Regular users vs.\ model. Daily frequency is unknown in Smith and Kanumuri, so the model is shown for 3, 4 and 6 equal doses a day
+(doses spread over the waking day; overnight gap before the morning dose).}
+\label{tab:regular}
+\begin{minipage}[t]{0.5\linewidth}\centering
+\begin{tabular}[t]{@{}rrrr@{}}
+\toprule
+\multicolumn{4}{c}{Trakulsrichai 2015: day-8 peak (ng/mL)} \\
+\multicolumn{4}{c}{observed 18.5--105} \\
+\midrule
+mg/day & test dose & capsule $F$ & tea $F$ \\
+\midrule
+\tabTrak
+\bottomrule
+\end{tabular}
+\end{minipage}%
+\begin{minipage}[t]{0.45\linewidth}\centering
+\begin{tabular}[t]{@{}rrrr@{}}
+\toprule
+\multicolumn{4}{c}{Smith 2024: 54\,mg morning dose} \\
+\multicolumn{4}{c}{observed MG 176, 7-OH 34 (ng/mL)} \\
+\midrule
+doses/day & MG & 7-OH & ratio \\
+\midrule
+\tabSmith
+\bottomrule
+\end{tabular}
+\end{minipage}
+
+\medskip
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\multicolumn{6}{c}{Kanumuri 2026: concentration before the usual dose (ng/mL)} \\
+\midrule
+participant & usual dose (mg MG) & observed & model 3/day & 4/day & 6/day \\
+\midrule
+\tabKan
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{fig/heavy_users.pdf}
+\caption{(a) Exposure per mg of MG after single doses of 1--12\,g (Reissig 2026): flat, i.e.\ linear, and about twice the model's.
+(b) Decline after stopping 6\,g/day (taken as the baseline), with each variant of \S\ref{sec:range} expressed against its own reference.
+The band between the fast and slow ends is what the app shows.}
+\label{fig:heavy}
+\end{figure}
+
+\paragraph{Findings.}
+\begin{enumerate}
+\item \textbf{Linear up to 12\,g.} MG AUC$_{0-48}$ per mg was \nraucmin--\nraucmax\,ng\,h/mL/mg over a 12-fold dose range with no trend
+(Figure~\ref{fig:heavy}a); the authors describe Cmax as slightly \emph{less} than dose-proportional, with absorption possibly limited by the
+number of capsules at 10--12\,g. The supra-proportionality seen in~\cite{huestis2024,huestis2026} (up to 1.4$\times$) was not reproduced. The
+linear model is supported up to single doses of about 125\,mg MG.
+\item \textbf{Absolute exposure is about 2$\times$ the model's.} Observed/model geometric-mean ratios in Reissig were \nrgmcmax\ (MG $C_{\max}$),
+\nrgmauc\ (MG AUC), \nrgmohcmax\ and \nrgmohauc\ (7-OH), with the same factor at every dose. Trakulsrichai's peaks lie between the model with
+capsule and with tea absorption; Smith's levels are matched by 4--6 doses a day; two of Kanumuri's four pre-dose levels are 2--4$\times$
+the model's. Fed administration, loose powder or tea and population all plausibly raise absorption compared with fasted capsules.
+\textbf{This factor does not change anything the app shows:} the percentage divides $E$ by the steady-state reference $R$, which scales with
+the same factor; ``kratom by effect'' divides by the model's own 1\,g peak; and the milligrams are dose-equivalent amounts that assume complete
+absorption (\S\ref{sec:amount}). The constants were therefore left unchanged, as was the SQL copy.
+\item \textbf{The 7-OH share holds.} In regular users the 7-OH/MG ratio after the morning dose was 0.19 (34/176~\cite{smith2024}); the model gives
+0.19 at steady state (Table~\ref{tab:regular}). The potency-weighted combination is unchanged. Note that 7-OH degrades in unstabilised plasma
+samples~\cite{kanumuri2026}, so earlier 7-OH values may be underestimates.
+\item \textbf{No sign that long-term use speeds up elimination.} \emph{In vitro}, kratom alkaloids activate PXR and induce CYP3A4 and CYP1A2~\cite{manda2017},
+which could in principle shorten MG's half-life in daily users. In humans, half-lives in regular users (17--35\,h~\cite{kanumuri2026};
+23\,$\pm$\,16\,h~\cite{trak2015}) are within the range of non-users with similar sampling (16--22\,h over 48\,h~\cite{reissig2026}), and the
+multiple-dose half-life in~\cite{huestis2024} was longer, not shorter, than the single-dose one.
+\item \textbf{Dose classes are not supported.} The apparent rise of half-life with dose in~\cite{huestis2024} is attributed by the same authors to
+assay sensitivity (higher doses stay measurable longer)~\cite{huestis2026}, and Reissig's half-lives do not rise with dose. No data show that a
+20\,g/day user clears MG differently from a 5\,g/day user, so per-class parameters would be invented. Intake is used only to widen the
+uncertainty range (\S\ref{sec:range}).
+\item \textbf{Other alkaloids.} In regular users speciociliatine reached plasma levels similar to MG (188 vs.\ 176\,ng/mL~\cite{smith2024}) and
+it is a more potent MOR partial agonist. It remains outside the model (user's decision to keep two components); this is listed as a limitation.
+\end{enumerate}
+
+\subsection{Range shown for the decline}\label{sec:range}
+What the data leave open is how fast the level falls, which drives the ``when will it drop'' projection. Reported MG terminal half-lives
+are 16--23\,h with 24--48\,h sampling or in regular users~\cite{trak2015,kanumuri2026,reissig2026}, and 43--68\,h with 5--10 days of sampling
+and after repeated dosing~\cite{huestis2024,tanna2022}. The central model has \ntbetac\,h. Two variants span this range: every disposition
+clearance ($CL$, $Q$, $CL_m$, $Q_m$) is multiplied by a factor $s$, which multiplies all disposition rate constants by $s$ (absorption is
+unchanged) and so divides the terminal half-life by $s$:
+\begin{itemize}
+\item \textbf{fast end}: $t_{1/2}=\ntfast$\,h ($s=\nsfast$);
+\item \textbf{slow end}: $t_{1/2}=\ntslow$\,h ($s=\nsslow$);
+\item \textbf{slow end for heavy users}: $t_{1/2}=\ntslowheavy$\,h ($s=\nsslowheavy$), used when the user's average over the last 14 days
+(or since their first dose, if more recent) exceeds \nheavyg\,g/day. \nheavyg\,g is the largest amount with any human PK data (Reissig's
+12\,g single dose; regular users in~\cite{smith2024,kanumuri2026} took up to about 11\,g at once). Above it, the only hint is the possible
+enzyme saturation raised in~\cite{huestis2026}, so the slow end is extended by the largest supra-proportionality reported ($\times$1.4).
+\end{itemize}
+Each variant is shown against \emph{its own} steady-state reference $R_s$ (the analogue of $R$), and without a plan against its own 1\,g peak.
+So ``50\,\%'' always means half of that variant's usual level: on a steady routine all variants agree, and they spread out only when
+intake changes. Table~\ref{tab:wash} shows the resulting range after stopping; the variants use a 21-day dose window, which keeps the
+truncated tail below 1\,\% even for the slowest one (a 14-day window would drop \ntailheavy\,\% of a single dose's peak).
+
+\begin{table}[H]\centering\small
+\caption{Time from the last dose until the level falls below 50, 25 and 10\,\% of the baseline level, after 30 days of 6\,g/day in three doses
+(= the baseline).}
+\label{tab:wash}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+ & terminal $t_{1/2}$ (h) & below 50\,\% & below 25\,\% & below 10\,\% \\
+\midrule
+\tabWash
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{In the app.} The \emph{V těle teď} card shows the central projection as before, a light band from the fast to the slow end on the
+chart, and under each ``below X\,\%'' line the earliest and latest time from the two ends. Users above \nheavyg\,g/day see a note that their
+amount is beyond what has been measured and that the slow end is extended. Morning recaps and milestone notifications (SQL) still use the
+central curve.
+
 \section{Uncertainty and limitations}
 
 \begin{figure}[H]\centering
@@ -410,13 +615,17 @@ of peak (90\,\% interval \nuncloOneTwo--\nunchiOneTwo\,\%), at 24\,h \nuncmedTwo
 \item \textbf{Population average, not the individual.} Between-subject variability in exposure is 5--10-fold~\cite{huestis2024}
 and is not represented. Figure~\ref{fig:sens}b shows only the uncertainty of the \emph{average} curve. Normalising to the user's own
 baseline removes the overall scale, but not individual differences in shape (e.g.\ CYP3A4 activity).
-\item \textbf{Linearity.} AUC rises up to $\sim$1.4$\times$ faster than dose~\cite{huestis2024,huestis2026}, and the high-dose trough is
-under-predicted (Table~\ref{tab:md}). The relative display slightly understates how much a large dose adds compared with a small one.
-\item \textbf{Calibration source.} One capsule study, with fasting. Our users' preparation (toss-and-wash, with or without food) may
-absorb differently. Food delays absorption and can cause secondary peaks~\cite{huestis2024}.
-\item \textbf{Chronic use.} Most participants were healthy adults, not daily long-term users. In chronic users, Trakulsrichai
-reported $t_{1/2}\approx 23$\,h~\cite{trak2015}, within the range modelled.
-\item \textbf{Product composition.} 1.6\,\% MG is taken as fixed; real batches vary. Other alkaloids are ignored.
+\item \textbf{Linearity.} AUC rose up to $\sim$1.4$\times$ faster than dose in~\cite{huestis2024,huestis2026} but not in single doses up to
+12\,g~\cite{reissig2026} (\S\ref{sec:heavyval}). Linearity is untested for repeated daily amounts above about 4\,g and for single doses
+above 12\,g.
+\item \textbf{Calibration source.} One capsule study, with fasting. Under real-world conditions absolute exposure is about twice the model's
+(\S\ref{sec:heavyval}); this does not affect the displayed quantities. Food delays absorption (Reissig: $t_{\max}$ 2--5\,h when fed) and can
+cause secondary peaks~\cite{huestis2024}.
+\item \textbf{Long-term and heavy use.} Regular users at their usual doses agree with the model (\S\ref{sec:heavyval}), but there are no
+time-resolved data for long-term users taking more than about 12\,g/day, nor for the decline after such users stop~\cite{nct06089980}.
+The projection is therefore shown as a range (\S\ref{sec:range}), wider for heavy users.
+\item \textbf{Product composition.} 1.6\,\% MG is taken as fixed; real batches vary. Other alkaloids are ignored, although in regular users
+speciociliatine reaches plasma levels similar to MG~\cite{smith2024} and is a more potent MOR partial agonist.
 \item \textbf{Interactions.} CYP3A4 inhibitors (e.g.\ itraconazole, clarithromycin, grapefruit) lower 7-OH and raise MG~\cite{mongar2024};
 inducers (e.g.\ rifampicin, St John's wort) are expected to do the opposite. Not modelled.
 \item \textbf{Concentration is not effect.} Tolerance, receptor adaptation and withdrawal are not modelled; withdrawal symptoms do
@@ -453,6 +662,10 @@ without a percentage scale. Doses logged at a later time today appear when their
 \item \textbf{Tests} (\texttt{pk.test.ts}): (i) the sums of exponentials agree with a numerical ODE solution; (ii) the single-dose and
 day-15 values in Tables~\ref{tab:sd} and~\ref{tab:md}; (iii) superposition and linearity; (iv) the daily mean of $L$ is 100\,\% at steady state on the baseline amount, however it is split.
 \item \textbf{Wording.} Always labelled as a rough population-average estimate, not a measurement, and with no advice derived from it.
+\item \textbf{Range (version 2).} \texttt{PK\_VARIANTS} (fast, slow, slowHeavy: $\lambda_k$, $c_k$, $R_s$ from \texttt{ts\_constants.json}),
+\texttt{pkAverageGramsPerDay} (14-day average, or since the first dose) and \texttt{pkRangeVariants} (slow end switches above \nheavyg\,g/day).
+The chart band and the earliest/latest projection times use these variants with a 21-day dose window. Tests check the variants against the
+scaled ODEs, their terminal half-lives, $R_s$, and the 50\,\% times of Table~\ref{tab:wash}.
 \end{enumerate}
 
 \section*{Reproducibility}
@@ -487,6 +700,34 @@ translation and prediction of drug interaction of the major kratom alkaloid, mit
 and a key mediator of its analgesic effects. \emph{ACS Cent Sci} 2019;5:992--1001.
 \bibitem{fda7oh} U.S.\ Food and Drug Administration. 7-Hydroxymitragynine (7-OH): an assessment of the scientific data and
 toxicological concerns around an emerging opioid threat. 2025.
+\bibitem{reissig2026} Reissig CJ, Chen L, Nallani SC, \emph{et al.} A pilot, dose-finding, pharmacodynamic and pharmacokinetic study of
+orally administered botanical kratom. \emph{J Clin Psychopharmacol} 2026;46(4):386--398.
+\href{https://doi.org/10.1097/JCP.0000000000002158}{doi:10.1097/JCP.0000000000002158}
+\bibitem{smith2024} Smith KE, Rogers JM, Sharma A, \emph{et al.} Responses to a ``typical'' morning dose of kratom in people who use kratom
+regularly: a direct-observation study. \emph{J Addict Med} 2024;18(2):144--152.
+\href{https://doi.org/10.1097/ADM.0000000000001259}{doi:10.1097/ADM.0000000000001259}
+\bibitem{kanumuri2026} Kanumuri SRR, Gundeti M, Mukhopadhyay S, \emph{et al.} Simultaneous quantification of seventeen kratom alkaloids and
+metabolites in human plasma and its application to clinical pharmacokinetic sample analysis. \emph{Pharm Biol} 2026;64(1):902--920.
+\href{https://doi.org/10.1080/13880209.2026.2715806}{doi:10.1080/13880209.2026.2715806}
+\bibitem{manda2017} Manda VK, Avula B, Dale OR, \emph{et al.} PXR mediated induction of CYP3A4, CYP1A2, and P-gp by \emph{Mitragyna speciosa}
+and its alkaloids. \emph{Phytother Res} 2017;31(12):1935--1945. \href{https://doi.org/10.1002/ptr.5942}{doi:10.1002/ptr.5942}
+\bibitem{wahyono2025} Wahyono S, Budiarti M, Kristiana L, \emph{et al.} Association of mitragynine levels with lipid profiles in regular kratom
+(\emph{Mitragyna speciosa}) users. \emph{Med Drug Discov} 2025;29:100241.
+\href{https://doi.org/10.1016/j.medidd.2025.100241}{doi:10.1016/j.medidd.2025.100241}
+\bibitem{ang2026} Ang J-Q, Yee LC, Chan S-H, \emph{et al.} Determination of urinary mitragynine concentration and severity of kratom dependence
+among people with kratom dependence in Malaysia. \emph{Asia Pac J Mol Biol Biotechnol} 2026;34(3):160.
+\href{https://doi.org/10.35118/apjmbb.2026.034.3.14}{doi:10.35118/apjmbb.2026.034.3.14}
+\bibitem{leong2020} Leong Bin Abdullah MFI, Tan KL, Narayanan S, \emph{et al.} Is kratom (\emph{Mitragyna speciosa} Korth.) use associated with
+ECG abnormalities? Electrocardiogram comparisons between regular kratom users and controls. \emph{Clin Toxicol} 2021;59(5):400--408.
+\href{https://doi.org/10.1080/15563650.2020.1812627}{doi:10.1080/15563650.2020.1812627} (abstract only consulted)
+\bibitem{kedzierski2023} Kedzierski N, Mata DC. Mitragynine in the Orange County DUID population. \emph{J Anal Toxicol} 2023;47(8):770--785.
+\href{https://doi.org/10.1093/jat/bkad066}{doi:10.1093/jat/bkad066}
+\bibitem{peran2023} Peřan D, Stern M, Černohorský P, \emph{et al.} \emph{Mitragyna speciosa} (kratom) poisoning: findings from ten cases.
+\emph{Toxicon} 2023;225:107054. \href{https://doi.org/10.1016/j.toxicon.2023.107054}{doi:10.1016/j.toxicon.2023.107054}
+\bibitem{holton2024} Holton K, Sanchez Corredera C, Haidar J, \emph{et al.} Acquired type 1 Brugada syndrome induced by chronic high-dose kratom use.
+\emph{Cureus} 2024;16(10):e72129. \href{https://doi.org/10.7759/cureus.72129}{doi:10.7759/cureus.72129}
+\bibitem{nct06089980} Johns Hopkins University. Direct observation study of kratom product effects among regular consumers.
+ClinicalTrials.gov NCT06089980 (recruiting; estimated completion 2028-02).
 \bibitem{manda2014} Manda VK, Avula B, Ali Z, \emph{et al.} Evaluation of \emph{in vitro} absorption, distribution, metabolism, and
 excretion (ADME) properties of mitragynine, 7-hydroxymitragynine, and mitraphylline. \emph{Planta Med} 2014;80:568--576.
 \end{thebibliography}

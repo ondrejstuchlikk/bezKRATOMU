@@ -154,6 +154,112 @@ out["rates"] = dict(k10=k10, k12=k12, k21=k21, alpha=alpha, beta=beta, t_alpha=n
                     t_ka=np.log(2)/P["ka"])
 out["F_REL"], out["S_OH"], out["fit_rmse_log"], out["W"] = F_REL, S_OH, fit_rmse, W
 
+# ---------------- version 2: regular / heavy users ----------------
+# (a) Reissig 2026 (J Clin Psychopharmacol 46:386): single doses 1-12 g leaf capsules (~1 % MG), fed, 48 h sampling,
+#     opioid-experienced non-dependent adults. Means (CV) from Table 4; MG mg = midpoint of the reported range.
+R_G = [1, 3, 8, 10, 12]
+R_MG = [10.25, 30.85, 82.25, 102.8, 123.35]
+R_OBS = dict(mg_cmax=[41.7, 118, 197.5, 318.1, 378.5], mg_auc48=[305.4, 784.8, 1942, 3254, 3271], mg_thalf=[17.28, 18.64, 17.47, 22.07, 15.9],
+             oh_cmax=[6.7, 17.8, 34.0, 48.4, 58.4], oh_auc48=[53.5, 132.9, 412.6, 459.1, 574.3])
+T48 = np.arange(0, 48.0001, 0.01)
+reissig = []
+for mg in R_MG:
+    cm, co = simulate([(0, mg)], T48, F=F_REL, s=S_OH)
+    reissig.append(dict(mg_cmax=cm.max(), mg_auc48=np.trapezoid(cm, T48), oh_cmax=co.max(), oh_auc48=np.trapezoid(co, T48)))
+out["reissig"] = reissig
+out["reissig_ratio"] = {k: [R_OBS[k][i]/reissig[i][k] for i in range(5)] for k in ["mg_cmax", "mg_auc48", "oh_cmax", "oh_auc48"]}
+out["reissig_auc_per_mg"] = [R_OBS["mg_auc48"][i]/R_MG[i] for i in range(5)]
+gm = lambda xs: float(np.exp(np.mean(np.log(xs))))
+out["reissig_gm_ratio"] = {k: gm(v) for k, v in out["reissig_ratio"].items()}
+
+# (b) Trakulsrichai 2015: 7 days of a fixed daily tea dose in regular users, then a test dose on day 8; observed Cmax 18.5-105 ng/mL.
+TRAK = [(6.25, 12.5), (6.25, 6.25), (9.96, 19.92), (9.96, 9.96), (11.5, 23.0)]
+t8 = np.arange(0, 24*8, 0.01)
+out["trak"] = []
+for daily, load in TRAK:
+    cm, _ = simulate([(24*k, daily) for k in range(7)] + [(24*7, load)], t8, F=F_REL, s=S_OH)
+    cmt, _ = simulate([(24*k, daily) for k in range(7)] + [(24*7, load)], t8, F=1.0, s=S_OH)   # tea-like absorption (Mongar fit)
+    w = t8 >= 24*7
+    out["trak"].append(dict(daily=daily, load=load, cmax=cm[w].max(), cmax_tea=cmt[w].max()))
+
+# (c) Smith 2024 (regular users, 6.6 y of use): typical morning dose 0.77 mg/kg MG (~54 mg at 70 kg) after overnight abstinence;
+#     post-dose plasma MG 176 (37-396) ng/mL, 7-OH 34 (3-78) ng/mL. Daily frequency unknown -> 3, 4 and 6 equal doses/day,
+#     last evening dose ~8 h before (doses at 08:00 + i*0.75*24/n), metric = max within 3 h after the morning dose.
+out["smith"] = []
+t40 = np.arange(0, 24*40 + 12, 0.05)
+for n in (3, 4, 6):
+    step = 24/n
+    cm, co = simulate([(24*d + 8 + i*step*0.75, 54.0) for d in range(40) for i in range(n)], t40, F=F_REL, s=S_OH)
+    w = (t40 > 24*39 + 8) & (t40 < 24*39 + 11.2)
+    out["smith"].append(dict(n=n, mg=cm[w].max(), oh=co[w].max(), ratio=co[w].max()/cm[w].max()))
+
+# (d) Kanumuri 2026 (regular users): pre-dose concentration C0 before the usual dose (mg MG), daily amounts not reported.
+KAN = [("KIDN01", 32.3, 26.9), ("KIJC02", 26.6, 58.5), ("KIDL03", 54.1, 222.4), ("KIDM04", 29.8, 107.7)]
+out["kanumuri"] = []
+for name, mg, c0 in KAN:
+    row = dict(name=name, mg=mg, c0=c0)
+    for n in (3, 4, 6):
+        step = 24/n
+        cm, _ = simulate([(24*d + 8 + i*step*0.75, mg) for d in range(40) for i in range(n)], t40, F=F_REL, s=S_OH)
+        row[f"x{n}"] = cm[np.searchsorted(t40, 24*39 + 8 - 0.01)]
+    out["kanumuri"].append(row)
+
+# (e) Uncertainty of the decline: the same model with all disposition clearances (CL, Q, CLm, Qm) multiplied by s.
+#     This scales every disposition rate constant (not absorption) by s, so the terminal half-life becomes t_beta/s.
+#     Targets: 20 h (fast end: Trakulsrichai, Kanumuri, Reissig) and 60 h (slow end: Huestis 2024 after 15 daily doses,
+#     10-day sampling); for heavy users (14-day mean above the highest amount with human data, 12 g/day) the slow end is
+#     extended by the largest supra-proportional exposure reported (x1.4, Huestis 2024/2026): 84 h.
+HEAVY_G_PER_DAY = 12.0
+T_FAST, T_SLOW = 20.0, 60.0
+T_SLOW_HEAVY = T_SLOW*1.4
+def p_scaled(s):
+    q = dict(P)
+    for k in ("CL", "Q", "CLm", "Qm"): q[k] = P[k]*s
+    return q
+def closed_form(p):
+    """(lambda_k ascending, combined-index coefficients c_k in nM per gram) for parameter set p."""
+    Ak = A_matrix(p); lm, Vv = np.linalg.eig(Ak); cc = np.linalg.solve(Vv, np.array([1000.0, 0, 0, 0, 0]))
+    lm = -np.real(lm); cMG = np.real(Vv[1]*cc)/p["Vc"]; cOH = np.real(Vv[3]*cc)/p["Vcm"]
+    o = np.argsort(lm)
+    cE = F_REL*mg_per_g*(cMG*1000/MW_MG + W*S_OH*cOH*1000/MW_OH)
+    return [float(x) for x in lm[o]], [float(x) for x in cE[o]]
+lam_beta = -min(np.real(np.linalg.eigvals(A_matrix(P))), key=abs)   # smallest rate = MG terminal phase
+variants = {}
+for name, th in [("fast", T_FAST), ("slow", T_SLOW), ("slowHeavy", T_SLOW_HEAVY)]:
+    s = (np.log(2)/th)/lam_beta
+    lm, cE = closed_form(p_scaled(s))
+    variants[name] = dict(scale=s, t_half_terminal=th, lambda_per_h=lm, level_nM_per_g=cE)
+out["variants"] = variants
+out["t_beta_central"] = float(np.log(2)/lam_beta)
+def E_curve(lm, cE, doses, t):
+    y = np.zeros_like(t)
+    for td, g in doses:
+        tau = t - td; m = tau >= 0
+        y[m] += g*np.sum(np.array(cE)[:, None]*np.exp(-np.outer(np.array(lm), tau[m])), axis=0)
+    return y
+# washout after 30 days on 6 g/day (= baseline) in three doses: hours from the last dose until the level is below 50/25/10 %
+# of the baseline level. Each variant is expressed against its OWN steady-state reference R (as the app does), so all
+# variants agree on a steady routine and differ only in how fast the level moves when intake changes.
+def R_of(lm, cE): return float(sum(c/l for c, l in zip(cE, lm))/24)
+for v in variants.values(): v["R_daily_mean_nM_per_g_per_day"] = R_of(v["lambda_per_h"], v["level_nM_per_g"])
+wd = [(24*d + h, 6*f) for d in range(30) for h, f in [(8, .4), (14, .35), (20.5, .25)]]
+t_last = 24*29 + 20.5
+tw = np.arange(t_last, t_last + 24*21, 0.05)
+lam_c, cE_c = out["coef"]["lam"], out["coef"]["coefE"]
+wcurves = {"central": E_curve(lam_c, cE_c, wd, tw)/(R_PER_G*6)*100}
+for name, v in variants.items():
+    wcurves[name] = E_curve(v["lambda_per_h"], v["level_nM_per_g"], wd, tw)/(v["R_daily_mean_nM_per_g_per_day"]*6)*100
+out["washout_band"] = {}
+for name, y in wcurves.items():
+    peak_i = int(np.argmax(y)); row = {}
+    for pct in (50, 25, 10):
+        below = np.nonzero((np.arange(len(y)) > peak_i) & (y < pct))[0]
+        row[pct] = float(tw[below[0]] - t_last) if len(below) else None
+    out["washout_band"][name] = row
+# memory window check for the slowest variant: share of a dose's peak left after 14 days
+v = variants["slowHeavy"]; t1 = np.arange(0, 24*14 + 0.001, 0.01); e1 = E_curve(v["lambda_per_h"], v["level_nM_per_g"], [(0, 1)], t1)
+out["slowHeavy_tail14_pct"] = float(100*e1[-1]/e1.max())
+
 # ---------------- figures ----------------
 def save(fig, name): fig.tight_layout(); fig.savefig(os.path.join(FIG, name)); plt.close(fig)
 
@@ -254,6 +360,27 @@ ax[1].set_title("(b) same 4 g, different timing", fontsize=9); ax[1].legend(); a
 for x in ax: x.set_xticks(range(0, 37, 6))
 save(fig, "dose_timing.pdf")
 
+
+# Fig 6: (a) Reissig 2026 high single doses: exposure per mg MG is flat from 1 to 12 g (linear), observed vs model;
+#        (b) washout band: stopping after 30 days of 6 g/day (baseline), each variant against its own reference.
+fig, ax = plt.subplots(1, 2, figsize=(6.6, 2.7))
+ax[0].plot(R_G, [R_OBS["mg_auc48"][i]/R_MG[i] for i in range(5)], "o-", color=C_MG, ms=4, label="observed MG AUC$_{0-48}$/mg")
+ax[0].plot(R_G, [reissig[i]["mg_auc48"]/R_MG[i] for i in range(5)], "s--", color=C_MG, ms=4, mfc="none", label="model (capsule $F_{rel}$)")
+ax[0].plot(R_G, [R_OBS["oh_auc48"][i]/R_MG[i] for i in range(5)], "o-", color=C_OH, ms=4, label="observed 7-OH")
+ax[0].plot(R_G, [reissig[i]["oh_auc48"]/R_MG[i] for i in range(5)], "s--", color=C_OH, ms=4, mfc="none", label="model 7-OH")
+ax[0].set_xlabel("single dose (g leaf powder)"); ax[0].set_ylabel("AUC$_{0-48}$ per mg MG (ng h/mL/mg)")
+ax[0].set_ylim(0, 52); ax[0].set_xticks(R_G); ax[0].legend(fontsize=6, ncol=2, loc="upper center"); ax[0].set_title("(a) high doses stay linear (Reissig 2026)", fontsize=9)
+th = (tw - t_last)/24
+lab = {"central": "central (38.5 h)", "fast": "fast end (20 h)", "slow": "slow end (60 h)", "slowHeavy": "slow end, heavy users (84 h)"}
+sty = {"central": ("-", C_E, 1.6), "fast": (":", C_E, 1.1), "slow": ("--", C_E, 1.1), "slowHeavy": ("-.", C_OH, 1.1)}
+for name in ["fast", "central", "slow", "slowHeavy"]:
+    ls, col, lw = sty[name]; ax[1].plot(th, wcurves[name], ls=ls, color=col, lw=lw, label=lab[name])
+ax[1].fill_between(th, wcurves["fast"], wcurves["slow"], color=C_E, alpha=0.10, lw=0)
+for y in (50, 25, 10): ax[1].axhline(y, color=C_GREY, lw=0.4, ls=":")
+ax[1].set_xlim(0, 10); ax[1].set_ylim(0, 160); ax[1].set_xlabel("days after the last dose"); ax[1].set_ylabel("$L$ (%), baseline 6 g/day")
+ax[1].legend(fontsize=6.5); ax[1].set_title("(b) range shown for the decline", fontsize=9)
+save(fig, "heavy_users.pdf")
+
 # ---------- numbers for LaTeX ----------
 def f(x, n=2): return f"{x:.{n}f}"
 def fz(x, n): return "0" if abs(x) < 10**-n else f"{x:+.{n}f}"
@@ -294,7 +421,10 @@ with open(os.path.join(HERE, "numbers.tex"), "w") as fh:
     fh.write("\\newcommand{\\tabCoef}{" + "\n".join(rows) + "}\n")
 with open(os.path.join(HERE, "ts_constants.json"), "w") as fh:
     json.dump(dict(lambda_per_h=out["coef"]["lam"], level_nM_per_g=out["coef"]["coefE"], R_daily_mean_nM_per_g_per_day=R_PER_G,
-                   mg_MG_per_g=out["coef"]["amtMG"], mg_OH_per_g=out["coef"]["amtOH"]), fh, indent=1)
+                   mg_MG_per_g=out["coef"]["amtMG"], mg_OH_per_g=out["coef"]["amtOH"],
+                   heavy_g_per_day=HEAVY_G_PER_DAY,
+                   variants={k: dict(t_half_terminal_h=v_["t_half_terminal"], lambda_per_h=v_["lambda_per_h"], level_nM_per_g=v_["level_nM_per_g"],
+                                     R_daily_mean_nM_per_g_per_day=v_["R_daily_mean_nM_per_g_per_day"]) for k, v_ in variants.items()}), fh, indent=1)
 Tex = np.arange(0, 14*24 + 0.001, 0.05)
 def amt_series(doses, t, coef):
     y = np.zeros_like(t)
@@ -309,6 +439,33 @@ with open(os.path.join(HERE, "numbers.tex"), "a") as fh:
     fh.write(f"\\newcommand{{\\nexMGlo}}{{{aMG.min():.0f}}}\\newcommand{{\\nexMGhi}}{{{aMG.max():.0f}}}"
              f"\\newcommand{{\\nexOHlo}}{{{aOH.min():.1f}}}\\newcommand{{\\nexOHhi}}{{{aOH.max():.1f}}}\n")
     fh.write("\\newcommand{\\tabAmt}{" + "\n".join(f"{k+1} & {out["coef"]["lam"][k]:.6f} & {fz(out['coef']['amtMG'][k], 5)} & {fz(out['coef']['amtOH'][k], 5)} \\\\" for k in range(5)) + "}\n")
+
+# ---------- version 2 numbers ----------
+def hrs(x): return "--" if x is None else (f"{x:.0f}\\,h" if x < 48 else f"{x/24:.1f}\\,d")
+with open(os.path.join(HERE, "numbers.tex"), "a") as fh:
+    V2 = {"tbetac": f(out["t_beta_central"], 1), "heavyg": f"{HEAVY_G_PER_DAY:g}", "tfast": f"{T_FAST:g}", "tslow": f"{T_SLOW:g}",
+          "tslowheavy": f"{T_SLOW_HEAVY:g}", "sfast": f(variants["fast"]["scale"], 2), "sslow": f(variants["slow"]["scale"], 2),
+          "sslowheavy": f(variants["slowHeavy"]["scale"], 2), "tailheavy": f(out["slowHeavy_tail14_pct"], 2),
+          "rgmcmax": f(out["reissig_gm_ratio"]["mg_cmax"], 2), "rgmauc": f(out["reissig_gm_ratio"]["mg_auc48"], 2),
+          "rgmohcmax": f(out["reissig_gm_ratio"]["oh_cmax"], 2), "rgmohauc": f(out["reissig_gm_ratio"]["oh_auc48"], 2),
+          "raucmin": f(min(out["reissig_auc_per_mg"]), 1), "raucmax": f(max(out["reissig_auc_per_mg"]), 1)}
+    for k, v_ in V2.items(): fh.write(f"\\newcommand{{\\n{mac(k)}}}{{{v_}}}\n")
+    rows = [f"{R_G[i]} & {R_MG[i]:.0f} & {R_OBS['mg_cmax'][i]:g} & {reissig[i]['mg_cmax']:.0f} & {R_OBS['mg_auc48'][i]:g} & {reissig[i]['mg_auc48']:.0f} & "
+            f"{R_OBS['oh_cmax'][i]:g} & {reissig[i]['oh_cmax']:.1f} & {R_OBS['oh_auc48'][i]:g} & {reissig[i]['oh_auc48']:.0f} & {R_OBS['mg_auc48'][i]/reissig[i]['mg_auc48']:.2f} \\\\"
+            for i in range(5)]
+    fh.write("\\newcommand{\\tabReissig}{" + "\n".join(rows) + "}\n")
+    rows = [f"{r['daily']:g} & {r['load']:g} & {r['cmax']:.0f} & {r['cmax_tea']:.0f} \\\\" for r in out["trak"]]
+    fh.write("\\newcommand{\\tabTrak}{" + "\n".join(rows) + "}\n")
+    rows = [f"{r['n']} & {r['mg']:.0f} & {r['oh']:.0f} & {r['ratio']:.2f} \\\\" for r in out["smith"]]
+    fh.write("\\newcommand{\\tabSmith}{" + "\n".join(rows) + "}\n")
+    rows = [f"{r['name']} & {r['mg']:g} & {r['c0']:g} & {r['x3']:.0f} & {r['x4']:.0f} & {r['x6']:.0f} \\\\" for r in out["kanumuri"]]
+    fh.write("\\newcommand{\\tabKan}{" + "\n".join(rows) + "}\n")
+    nm = {"fast": "fast end", "central": "central", "slow": "slow end", "slowHeavy": "slow end, heavy users"}
+    th_ = {"fast": T_FAST, "central": out["t_beta_central"], "slow": T_SLOW, "slowHeavy": T_SLOW_HEAVY}
+    rows = [f"{nm[k]} & {th_[k]:.0f} & {hrs(out['washout_band'][k][50])} & {hrs(out['washout_band'][k][25])} & {hrs(out['washout_band'][k][10])} \\\\"
+            for k in ["fast", "central", "slow", "slowHeavy"]]
+    fh.write("\\newcommand{\\tabWash}{" + "\n".join(rows) + "}\n")
+
 with open(os.path.join(HERE, "numbers.json"), "w") as fh:
     json.dump(out, fh, indent=1, default=float)
 print(json.dumps({k: out[k] for k in ["F_REL", "S_OH", "fit_rmse_log", "W", "tea", "rates", "R_per_g_nM", "E_single_peak_per_g",

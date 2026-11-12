@@ -12,6 +12,8 @@ export interface LevelChartPoint {
   t: number
   past: number | null
   future: number | null
+  /** Fast–slow range of the projection (same scale as the lines), only from "now" on. */
+  band: [number, number] | null
 }
 
 /** Chart part of LevelCard, in its own file so Recharts loads lazily. */
@@ -70,9 +72,25 @@ export default function LevelChart({
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}
           labelStyle={{ color: c.muted }}
           labelFormatter={(t) => (multiDay ? `${weekday(Number(t))} ` : '') + pragueTime(new Date(Number(t)))}
-          formatter={(v) => [showPct ? `${roundPct(Number(v))} %` : '', cs.level.tooltipLevel]}
+          formatter={(v, _name, item) => {
+            if (item.dataKey === 'band') {
+              const [lo, hi] = v as unknown as [number, number]
+              return [showPct ? `${roundPct(lo)}–${roundPct(hi)} %` : '', cs.level.legendRange]
+            }
+            return [showPct ? `${roundPct(Number(v))} %` : '', cs.level.tooltipLevel]
+          }}
           separator=": "
           filterNull
+        />
+        <Area
+          dataKey="band"
+          type="monotone"
+          stroke="none"
+          fill={c.accent}
+          fillOpacity={0.12}
+          connectNulls={false}
+          isAnimationActive={false}
+          activeDot={false}
         />
         <Area
           dataKey="past"

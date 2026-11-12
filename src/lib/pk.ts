@@ -5,6 +5,8 @@
 // fixed sum of exponentials. The derivation, sources, validation and limits are in
 // docs/pk-model/kratom-pk-model.pdf; the constants below are copied from docs/pk-model/ts_constants.json
 // (written by docs/pk-model/model.py). Population average for an adult (~70 kg), not a measurement.
+// Model version 2 (2026-11-12) keeps the central curve and adds faster/slower variants (PK_VARIANTS) that give the
+// range shown for the projection; the report's "Regular and heavy users" section explains the data behind them.
 
 /** Rate constants λ_k (1/h) of the five exponentials. */
 export const PK_LAMBDA = [0.01798397824138001, 0.10947152234747914, 0.2595274073339729, 1.99, 2.277781581755706] as const
@@ -43,10 +45,94 @@ export interface PkPoint {
   mgOH: number
 }
 
-function unitResponse(coef: readonly number[], hours: number): number {
+function unitResponse(coef: readonly number[], hours: number, lambda: readonly number[] = PK_LAMBDA): number {
   let sum = 0
-  for (let k = 0; k < PK_LAMBDA.length; k++) sum += coef[k] * Math.exp(-PK_LAMBDA[k] * hours)
+  for (let k = 0; k < lambda.length; k++) sum += coef[k] * Math.exp(-lambda[k] * hours)
   return sum
+}
+
+// --- Uncertainty range (model version 2, "Regular and heavy users" in the report) ---------------------------
+// The same model with every disposition clearance scaled so that the terminal half-life is 20 h (fast end) or
+// 60 h (slow end; 84 h for heavy users) instead of the central 38.5 h. Each variant has its own steady-state
+// reference, so "50 %" always means half of that variant's usual level: on a steady routine all variants agree,
+// and they spread out when intake changes (e.g. how fast the level falls after a smaller day or a stop).
+
+export interface PkVariant {
+  /** Rate constants (1/h). */
+  lambda: readonly number[]
+  /** Combined index E (nM) per gram of powder. */
+  level: readonly number[]
+  /** Steady-state daily mean of E (nM) at 1 g/day (this variant's PK_REF_NM_PER_G_DAY). */
+  ref: number
+}
+
+export const PK_VARIANTS = {
+  fast: {
+    lambda: [0.034657359027997214, 0.21096521595028772, 0.5001415378096337, 1.99, 4.3895679257788816],
+    level: [14.68423273343754, 10.616727337289507, 349.13706021710294, -531.2099695739064, 156.7719492860765],
+    ref: 39.20305951830047,
+  },
+  slow: {
+    lambda: [0.011552453009332442, 0.07032173865009628, 0.16671384593654454, 1.4631893085929604, 1.99],
+    level: [14.512745843235011, 9.838902490112106, 285.28972397967067, -714.07992909932, 404.43855678630234],
+    ref: 117.6091785549013,
+  },
+  slowHeavy: {
+    lambda: [0.008251752149523159, 0.05022981332149723, 0.11908131852610325, 1.0451352204235436, 1.99],
+    level: [14.488574138915377, 9.736992224914516, 278.02640958127364, -398.13627230060365, 95.88429635550018],
+    ref: 164.65284997686175,
+  },
+} as const satisfies Record<string, PkVariant>
+
+/** Above this 14-day average (g/day) there are no human data; the slow end of the range is extended. */
+export const PK_HEAVY_G_PER_DAY = 12
+
+/** The slow variants keep doses longer (a 14-day cut would drop up to 2.8 % of the 84 h variant's exposure). */
+export const PK_VARIANT_MEMORY_DAYS = 21
+
+/** The central model as a variant, so the helpers below work for all of them. */
+export const PK_CENTRAL: PkVariant = { lambda: PK_LAMBDA, level: LEVEL_NM_PER_G, ref: PK_REF_NM_PER_G_DAY }
+
+/** Fast and slow ends of the range for a user with the given 14-day average (g/day). */
+export function pkRangeVariants(avgGramsPerDay: number): { fast: PkVariant; slow: PkVariant } {
+  return { fast: PK_VARIANTS.fast, slow: avgGramsPerDay > PK_HEAVY_G_PER_DAY ? PK_VARIANTS.slowHeavy : PK_VARIANTS.slow }
+}
+
+/** Combined index E (nM) of a variant at `t`; same rules as pkAt (future doses ignored), memory depends on the variant. */
+export function pkVariantLevel(variant: PkVariant, doses: readonly PkDose[], t: number): number {
+  const memoryH = (variant === PK_CENTRAL ? PK_MEMORY_DAYS : PK_VARIANT_MEMORY_DAYS) * 24
+  let level = 0
+  for (const d of doses) {
+    const hours = (t - new Date(d.takenAt).getTime()) / HOUR_MS
+    if (hours < 0 || hours > memoryH || !(d.grams > 0)) continue
+    level += d.grams * unitResponse(variant.level, hours, variant.lambda)
+  }
+  return Math.max(0, level)
+}
+
+/** Peak of a variant's E after 1 g (nM), found numerically. */
+export function pkVariantPeak(variant: PkVariant): number {
+  let best = 0
+  for (let i = 0; i <= 8000; i++) best = Math.max(best, unitResponse(variant.level, i / 1000, variant.lambda))
+  return best
+}
+
+/**
+ * Average grams per day over the 14 days before `t`. For someone with a shorter history (first dose less than 14 days
+ * ago), the days since their first dose are used instead, so a new heavy user is not averaged down.
+ */
+export function pkAverageGramsPerDay(doses: readonly PkDose[], t: number): number {
+  const day = 24 * HOUR_MS
+  let grams = 0
+  let earliest = t
+  for (const d of doses) {
+    const at = new Date(d.takenAt).getTime()
+    if (at > t) continue
+    earliest = Math.min(earliest, at)
+    if (at > t - 14 * day && d.grams > 0) grams += d.grams
+  }
+  const days = Math.min(14, Math.max(1, (t - earliest) / day))
+  return grams / days
 }
 
 /**
@@ -87,17 +173,23 @@ export function levelPct(levelNM: number, baselineG: number | null | undefined):
  * level, past its coming peak, falls below it. Only doses up to `from` count. null when the threshold is not
  * below the peak, or not reached within PK_MEMORY_DAYS. Times are on a `stepMin` grid.
  */
-export function pkTimesBelow(doses: readonly PkDose[], from: number, thresholdsNM: readonly number[], stepMin = 5): (number | null)[] {
+export function pkTimesBelow(
+  doses: readonly PkDose[],
+  from: number,
+  thresholdsNM: readonly number[],
+  stepMin = 5,
+  variant: PkVariant = PK_CENTRAL,
+): (number | null)[] {
   const past = doses.filter((d) => new Date(d.takenAt).getTime() <= from)
   const out: (number | null)[] = thresholdsNM.map(() => null)
   if (!past.length) return out
   const step = stepMin * 60_000
-  const end = from + PK_MEMORY_DAYS * 24 * HOUR_MS
-  let prev = pkAt(past, from).levelNM
+  const end = from + (variant === PK_CENTRAL ? PK_MEMORY_DAYS : PK_VARIANT_MEMORY_DAYS) * 24 * HOUR_MS
+  let prev = pkVariantLevel(variant, past, from)
   let peak = prev
   let falling = false
   for (let t = from + step; t <= end; t += step) {
-    const level = pkAt(past, t).levelNM
+    const level = pkVariantLevel(variant, past, t)
     if (!falling && level < prev) falling = true
     if (!falling) peak = Math.max(peak, level)
     if (falling) {
