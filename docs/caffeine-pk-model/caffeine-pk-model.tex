@@ -22,8 +22,8 @@
 
 \title{\textbf{Estimating the caffeine still in the body\\from self-reported drinks}\\[4pt]
 \large Literature review, model options, calibration, validation and implementation specification\\for the \emph{bezKRATOMU} application}
-\author{Technical report (model version 1)}
-\date{8 November 2026}
+\author{Technical report (model version 2: smoking)}
+\date{8 November 2026; version 2: 12 November 2026}
 
 \begin{document}
 \maketitle
@@ -49,6 +49,14 @@ the model is unbiased in shape but under-predicts early peak concentrations by a
 (milligrams in the body). A sleep reference of \nRefMgKg\,mg per kg body weight (\nRefMg\,mg at 70\,kg) is derived
 from the 2023 meta-analysis of caffeine and sleep and agrees with a direct measurement. The estimate is a
 population average, not a measurement, and the report states its limits.
+
+\smallskip\noindent\textbf{Version 2 (12 November 2026).} For users who log cigarettes in the application, the
+elimination rate now follows their own smoking (Section~\ref{sec:smoking}). Caffeine clearance rises with the number
+of cigarettes in the last 24\,h (fitted to 786 people, Tantcheva-Po\'or 1999: $\times$\nSmMten{} at 10 and
+$\times$\nSmMtwenty{} at 20 cigarettes a day, i.e.\ a half-life of \nSmThalfTen{} and \nSmThalfTwenty\,h) and follows
+changes in smoking with the 38.6\,h half-life measured after quitting (Faber 2004). Against seven independent
+smoker/non-smoker and quitting comparisons the model is within $-14$ to $+23\,\%$. Snus and nicotine replacement are
+not counted. Without logged cigarettes the model is unchanged.
 \end{abstract}
 
 \tableofcontents
@@ -63,6 +71,8 @@ analogous to the kratom card (\emph{V těle teď}). The owner of the application
 \textbf{cups of coffee} (``$\approx$ X šálků kávy'').
 \item \textbf{One population-average half-life} for everyone; no adjustment for smoking, oral
 contraceptives or pregnancy (these are documented here as options for later, Section~\ref{sec:options}).
+\emph{Changed in version 2 (12 November 2026):} the owner decided that a user's own cigarette log may adjust
+that user's own caffeine estimate (Section~\ref{sec:smoking}); contraceptives and pregnancy are still not used.
 \item \textbf{Caffeine only}; its main metabolite paraxanthine is not shown (Section~\ref{sec:metab}).
 \item Sleep: a \textbf{projection at the user's bedtime} and a \textbf{soft reference level} from the
 literature, clearly labelled as such.
@@ -181,7 +191,7 @@ D. Option A with covariates (smoking from logged cigarettes, contraceptives, pre
 Captures the largest known sources of variation; smoking could come from the app's own cigarette
 log, with the 39\,h de-induction half-time of Faber 2004. &
 Declined for version~1 (decision 2); needs extra, sensitive settings. Recommended as the first
-extension. \\
+extension; \textbf{smoking adopted in version~2} (Section~\ref{sec:smoking}). \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -379,6 +389,129 @@ Band: 10--90\,\% of people (population variability of Seng 2009).}
 \label{fig:sens}
 \end{figure}
 
+\section{Smoking (model version 2)}
+\label{sec:smoking}
+\subsection{Question and search}
+The application also lets users log cigarettes and snus. Smoking is the largest well-documented source of
+variation in caffeine elimination (Section~\ref{sec:variability}), so for users who log cigarettes the elimination
+rate is now made to follow their own smoking. Three questions had to be answered from the literature: how much
+smoking increases caffeine clearance as a function of the number of cigarettes, how fast the increase appears and
+disappears when smoking changes, and whether smokeless tobacco or nicotine alone have the same effect.
+
+PubMed was searched on 12 November 2026 (E-utilities) for caffeine or CYP1A2 combined with smoking, cigarettes or
+tobacco and with clearance, half-life, metabolic ratio, induction or activity; for CYP1A2 or caffeine with cessation,
+abstinence or quitting; for CYP1A2 with cigarettes per day, dose dependence or light smokers; for caffeine or CYP1A2
+with snus, smokeless tobacco, nicotine replacement, e-cigarettes or vaping; and for meta-analyses (about 620 unique
+records). Titles were screened and abstracts of all human studies with caffeine (or another CYP1A2 probe) and
+smoking data were read. One letter on nicotine alone (Hukkanen 2011) could not be read in full.
+
+\subsection{What is known}
+\begin{itemize}
+\item \textbf{Mechanism.} Polycyclic aromatic hydrocarbons in smoke induce hepatic CYP1A2 through the aryl
+hydrocarbon receptor; nicotine is not the inducer (Schaffer 2009; Anderson 2016). The volume of distribution is
+unchanged (Parsons 1978), so smoking acts on clearance only.
+\item \textbf{Size of the effect.} Smokers' caffeine clearance is 1.3--2.0 times that of non-smokers
+(Table~\ref{tab:smoke}); CYP1A2 activity ratios are similar (1.55, 194 smokers, Dobrinas 2011; 1.66--1.70,
+Vistisen 1991).
+\item \textbf{Dose-response.} In 786 healthy adults, caffeine clearance relative to non-smokers was 1.22, 1.47,
+1.66 and 1.72 for 1--5, 6--10, 11--20 and $>$20 cigarettes a day (Tantcheva-Po\'or 1999). Hepatic CYP1A2 abundance
+derived independently for the same categories rises in the same way (Plowchalk 2012), and cigarettes per day and
+urinary cotinine correlate with CYP1A2 activity (Kalow 1991; Dobrinas 2011). The effect therefore rises steeply over
+the first ten cigarettes and then levels off.
+\item \textbf{Time course after quitting.} In 12 heavy smokers phenotyped repeatedly for 13 days after quitting,
+caffeine clearance fell monoexponentially by 36\,\% with a half-life of 38.6\,h (95\,\% CI 27.4--54.4\,h; Faber 2004),
+i.e.\ most of the change is over within a week. Consistent: 24-h caffeine AUC rose by 46\,\% after 4 days of
+abstinence (Brown 1988); clearance fell from 118 to 77\,mL/min after 3 weeks (Joeres 1988). Switching to heated
+tobacco or e-cigarettes reverses the induction like quitting within about five days (van der Plas 2020; Uche 2026).
+\item \textbf{Starting or resuming smoking.} No time course of induction onset in humans was found. Case reports
+show that clozapine levels fall reproducibly when a patient resumes smoking 6 cigarettes a day (Ikawa 2026). In a
+turnover model the same enzyme degradation rate governs both directions, which is the assumption used here.
+\item \textbf{Smokeless tobacco and nicotine.} Theophylline (a CYP1A2 substrate) half-life in regular snuff or
+chewing-tobacco users who did not smoke was the same as in non-users (Parish 1989), and plasma, urine and saliva
+metabolomics showed altered caffeine metabolism in smokers but not in moist-snuff users (Liu 2019, industry-funded).
+Primary human hepatocytes exposed to smokeless-tobacco extracts \emph{in vitro} did induce CYP1A2 mRNA (Lenich 2026);
+this has not been confirmed in people. Snus is therefore not counted.
+\item \textbf{Variability.} The induced increase varies widely between people (after quitting from no change to a
+7.3-fold decrease; Dobrinas 2011), partly with CYP1A2 genotype.
+\end{itemize}
+
+\subsection{Model}
+The elimination rate becomes time-dependent, $\ke(t)=\ke\,M(t)$, with $\ke$ the population value of
+Section~\ref{sec:params} (which excludes smokers) and $M(t)\ge 1$ a factor that follows the user's smoking:
+\begin{align}
+r(t) &= \text{cigarettes logged in } (t-24\,\text{h},\,t], \\
+M^*(r) &= 1 + E_{\max}\,\frac{r}{EC_{50}+r}, \qquad E_{\max}=\nSmEmax,\; EC_{50}=\nSmEcfifty\ \text{cigarettes/day}, \\
+\frac{dM}{dt} &= k_\text{deg}\,\bigl(M^*(r(t)) - M(t)\bigr), \qquad k_\text{deg}=\ln 2/\nSmTdeind\,\text{h}.
+\end{align}
+$E_{\max}$ and $EC_{50}$ were fitted (least squares on the log scale) to the four Tantcheva-Po\'or categories,
+using midpoints and 25 for ``$>$20'' (Figure~\ref{fig:smoking}a). A user who has just started logging is assumed to
+have smoked before as in their first logged week (at least one day): $M$ starts at $M^*(r_0)$ with $r_0$ that average,
+and the part of the 24-h window before the first logged cigarette counts at $r_0$. Cigarettes older than
+\nSmWindow{} days are ignored ($2^{-17}$ of their effect is left). The projection (``if you have nothing more'') keeps
+$M$ at its current value: it assumes no more caffeine, not that the user stops smoking.
+
+For each caffeine entry at time $t_i$,
+\begin{equation}
+\text{body}_i(t) = D_i\,\frac{\ka}{\ka-\ke M(t_i)}\Bigl(e^{-\int_{t_i}^{t}\ke M(s)\,ds} - e^{-\ka (t-t_i)}\Bigr),
+\end{equation}
+i.e.\ elimination uses the exact integral of the varying rate, and absorption (which takes about an hour, while $M$
+changes over days) uses the rate at the time of the entry. Against a direct numerical solution of the differential
+equations in the test scenario below, the largest difference is \nSmMaxErr\,mg. With no cigarettes $M\equiv 1$ and
+everything is identical to version~1.
+
+\begin{figure}[H]
+\centering\includegraphics[width=\linewidth]{fig/smoking.pdf}
+\caption{(a) Caffeine clearance relative to non-smokers by cigarettes in the last 24\,h: model and data.
+(b) Caffeine half-life for a user who smokes 20 cigarettes a day for two weeks and then stops.}
+\label{fig:smoking}
+\end{figure}
+
+\subsection{Validation}
+Table~\ref{tab:smoke} compares the model with smoker/non-smoker and quitting studies that were not used for the
+fit. Where the number of cigarettes is not given, 20 a day is assumed. The model ratio is within $-14$ to $+11\,\%$
+of six of the seven observations and 23\,\% above the smallest within-subject effect (Benowitz 2003, 12 smokers; part
+of the induction may not yet have reversed after 7 days of breathing air, or the participants smoked less).
+
+{\small
+\begin{longtable}{p{0.12\linewidth}p{0.32\linewidth}rrrp{0.16\linewidth}}
+\caption{Caffeine clearance ratio (smoking vs.\ non-smoking), observed and model.}\label{tab:smoke}\\
+\toprule
+Study & Design & Observed & Model & Model/obs. & Note \\
+\midrule\endfirsthead
+\smoketable
+\bottomrule
+\end{longtable}}
+
+\subsection{What it changes}
+For 20 cigarettes a day the half-life falls from \nTHalf{} to \nSmThalfTwenty\,h (\nSmThalfTen\,h at 10, \nSmThalfFive\,h
+at 5 a day). With 150\,mg at 8:00 and 14:00, a non-smoker still has \nSmBedBase\,mg at 23:00; the same person smoking
+20 a day has \nSmBedSmoke\,mg. Two days after quitting the factor is \nSmScMtwo{} (from \nSmScM), after a week
+\nSmScMseven.
+
+\subsection{In the application}
+\begin{itemize}
+\item Only for users who track cigarettes; only their own entries (last \nSmWindow{} days), loaded and used in the
+browser like the caffeine entries. Nothing new is stored, shared or sent.
+\item The card shows a short line with the current half-life when the factor is above 1.02, and the explanation lists
+how smoking is used and why snus is not.
+\item Constants: \texttt{smoking} in \texttt{ts\_constants.json}; \texttt{cafSmokingClearance} in
+\texttt{src/lib/caffeinePk.ts} (15-minute grid, exact step for a constant target within a step).
+\texttt{caffeinePk.test.ts} pins the factor and caffeine amounts of the scenario (20 a day for 14 days, then none).
+\end{itemize}
+
+\subsection{Limitations of the smoking adjustment}
+\begin{itemize}
+\item Individual induction varies more than any population model can capture (genotype, other inducers); the factor is
+an average for people smoking that many cigarettes.
+\item Only logged cigarettes count. Unlogged cigarettes, cigars, cannabis smoking (which also induces CYP1A2;
+Anderson 2016) and heavy coffee drinking (a smaller induction, Tantcheva-Po\'or 1999; Djordjevic 2008) are not
+included.
+\item The onset of induction when starting or resuming smoking is assumed to be as fast as the offset; no human
+data were found.
+\item A user who starts logging is assumed to have smoked as in their first week; if they had just started smoking,
+the first days are overestimated.
+\end{itemize}
+
 \section{Deployment specification (for later)}
 \label{sec:deploy}
 \begin{itemize}
@@ -405,7 +538,7 @@ and re-running the tests, as for kratom.
 
 \section{Limitations}
 \begin{itemize}
-\item One population half-life; real individuals differ by a factor of three or more
+\item One population half-life (adjusted only for logged cigarettes since version~2); real individuals differ by a factor of three or more
 (10--90\,\%: \nTHalfTen--\nTHalfNinety\,h in the simulated population), most strongly with smoking,
 oral contraceptives, pregnancy, liver disease and some medicines.
 \item Linear kinetics; after very large doses or heavy daily intake, elimination may be slower than
@@ -421,30 +554,48 @@ adults and is not a safe limit.
 \small
 \begin{enumerate}[leftmargin=*,label={}]
 \item Abernethy DR, Todd EL (1985). Impairment of caffeine clearance by chronic use of low-dose oestrogen-containing oral contraceptives. \emph{Eur J Clin Pharmacol} 28:425--8. \pmid{4029248}.
+\item Anderson GD, Chan LN (2016). Pharmacokinetic drug interactions with tobacco, cannabinoids and smoking cessation products. \emph{Clin Pharmacokinet} 55:1353--68. \pmid{27106177}.
+\item Benowitz NL, Peng M, Jacob P (2003). Effects of cigarette smoking and carbon monoxide on chlorzoxazone and caffeine metabolism. \emph{Clin Pharmacol Ther} 74:468--74. \pmid{14586387}.
 \item Blanchard J, Sawers SJ (1983). The absolute bioavailability of caffeine in man. \emph{Eur J Clin Pharmacol} 24:93--8. \pmid{6832208}.
 \item Bonati M, et al.\ (1982). Caffeine disposition after oral doses. \emph{Clin Pharmacol Ther} 32:98--106. \pmid{7083737}.
+\item Brown CR, Jacob P, Wilson M, Benowitz NL (1988). Changes in rate and pattern of caffeine metabolism after cigarette abstinence. \emph{Clin Pharmacol Ther} 43:488--91. \pmid{3365914}.
 \item Cheng WS, et al.\ (1990). Dose-dependent pharmacokinetics of caffeine in humans: relevance as a test of quantitative liver function. \emph{Clin Pharmacol Ther} 47:516--24. \pmid{2328560}.
 \item Crozier TW, et al.\ (2012). Espresso coffees, caffeine and chlorogenic acid intake: potential health implications. \emph{Food Funct} 3:30--3. \pmid{22130653}.
 \item Denaro CP, et al.\ (1990). Dose-dependency of caffeine metabolism with repeated dosing. \emph{Clin Pharmacol Ther} 48:277--85. \pmid{2401126}.
+\item Djordjevic N, et al.\ (2008). Induction of CYP1A2 by heavy coffee consumption in Serbs and Swedes. \emph{Eur J Clin Pharmacol} 64:381--5. \pmid{18157525}.
+\item Dobrinas M, et al.\ (2011). Impact of smoking, smoking cessation, and genetic polymorphisms on CYP1A2 activity and inducibility. \emph{Clin Pharmacol Ther} 90:117--25. \pmid{21593735}.
 \item Drake C, et al.\ (2013). Caffeine effects on sleep taken 0, 3, or 6 hours before going to bed. \emph{J Clin Sleep Med} 9:1195--200. \pmid{24235903}.
 \item Faber MS, Fuhr U (2004). Time response of cytochrome P450 1A2 activity on cessation of heavy smoking. \emph{Clin Pharmacol Ther} 76:178--84. \pmid{15289794}.
 \item Fendt R, et al.\ (2021). Data-driven personalization of a physiologically based pharmacokinetic model for caffeine: a systematic assessment. \emph{CPT Pharmacometrics Syst Pharmacol} 10:782--793. \pmid{34053199}.
 \item Gardiner C, et al.\ (2023). The effect of caffeine on subsequent sleep: a systematic review and meta-analysis. \emph{Sleep Med Rev} 69:101764. \pmid{36870101}.
 \item Grzegorzewski J, et al.\ (2021). Pharmacokinetics of caffeine: a systematic analysis of reported data for application in metabolic phenotyping and liver function testing. \emph{Front Pharmacol} 12:752826. \pmid{35280254}.
 \item Haller CA, et al.\ (2004). Enhanced stimulant and metabolic effects of combined ephedrine and caffeine. \emph{Clin Pharmacol Ther} 75:259--73. \pmid{15060505}.
+\item Hukkanen J, et al.\ (2011). Effect of nicotine on cytochrome P450 1A2 activity. \emph{Br J Clin Pharmacol} 72:836--8. \pmid{21599724}.
+\item Ikawa K, et al.\ (2026). Effects of repeated smoking and quitting cigarettes on plasma concentrations of clozapine and its N-desmethyl and N-oxide metabolites in a Japanese patient with schizophrenia. \emph{Neuropsychopharmacol Rep} 46:e70121. \pmid{41954161}.
 \item Jeppesen U, et al.\ (1996). A fluvoxamine--caffeine interaction study. \emph{Pharmacogenetics} 6:213--22. \pmid{8807660}.
+\item Joeres R, et al.\ (1988). Influence of smoking on caffeine elimination in healthy volunteers and in patients with alcoholic liver cirrhosis. \emph{Hepatology} 8:575--9. \pmid{3371873}.
+\item Kalow W, Tang BK (1991). Caffeine as a metabolic probe: exploration of the enzyme-inducing effect of cigarette smoking. \emph{Clin Pharmacol Ther} 49:44--8. \pmid{1988240}.
 \item Kaplan GB, et al.\ (1997). Dose-dependent pharmacokinetics and psychomotor effects of caffeine in humans. \emph{J Clin Pharmacol} 37:693--703. \pmid{9378841}.
 \item Knutti R, et al.\ (1981). Effect of pregnancy on the pharmacokinetics of caffeine. \emph{Eur J Clin Pharmacol} 21:121--6. \pmid{7341280}.
 \item Landolt HP, et al.\ (1995). Caffeine intake (200 mg) in the morning affects human sleep and EEG power spectra at night. \emph{Brain Res} 675:67--74. \pmid{7796154}.
+\item Lenich AK, et al.\ (2026). Differential induction of hepatic CYP enzymes by tobacco products and e-cigarettes. \emph{Arch Toxicol} 100:4041--64. \pmid{42159749}.
 \item Lelo A, et al.\ (1986). Comparative pharmacokinetics of caffeine and its primary demethylated metabolites paraxanthine, theobromine and theophylline in man. \emph{Br J Clin Pharmacol} 22:177--82. \pmid{3756065}.
 \item Liguori A, et al.\ (1997). Absorption and subjective effects of caffeine from coffee, cola and capsules. \emph{Pharmacol Biochem Behav} 58:721--6. \pmid{9329065}.
+\item Liu G, et al.\ (2019). Pathway analysis of global metabolomic profiles identified enrichment of caffeine, energy, and arginine metabolism in smokers but not moist snuff consumers. \emph{Bioinform Biol Insights} 13:1177932219882961. \pmid{31666793}.
 \item Ludwig IA, et al.\ (2014). Variations in caffeine and chlorogenic acid contents of coffees: what are we drinking? \emph{Food Funct} 5:1718--26. \pmid{25014672}.
 \item Mahr G, et al.\ (1992). Effects of temafloxacin and ciprofloxacin on the pharmacokinetics of caffeine. \emph{Clin Pharmacokinet} 22 Suppl 1:90--7. \pmid{1319876}.
 \item Nehlig A (2018). Interindividual differences in caffeine metabolism and factors driving caffeine consumption. \emph{Pharmacol Rev} 70:384--411. \pmid{29514871}.
 \item Newton R, et al.\ (1981). Plasma and salivary pharmacokinetics of caffeine in man. \emph{Eur J Clin Pharmacol} 21:45--52. \pmid{7333346}.
+\item Parish RC, Terrell JR, Brown WJ (1989). Clinical pharmacokinetics of theophylline and levels of alpha 1-acid glycoprotein in smokeless tobacco users. \emph{Chest} 95:1253--6. \pmid{2721260}.
 \item Parsons WD, Neims AH (1978). Effect of smoking on caffeine clearance. \emph{Clin Pharmacol Ther} 24:40--5. \pmid{657717}.
+\item Plowchalk DR, Rowland Yeo K (2012). Prediction of drug clearance in a smoking population: modeling the impact of variable cigarette consumption on the induction of CYP1A2. \emph{Eur J Clin Pharmacol} 68:951--60. \pmid{22258279}.
+\item Schaffer SD, Yoon S, Zadezensky I (2009). A review of smoking cessation: potentially risky effects on prescribed medications. \emph{J Clin Nurs} 18:1533--40. \pmid{19490292}.
 \item Seng KY, et al.\ (2009). Population pharmacokinetics of caffeine in healthy male adults using mixed-effects models. \emph{J Clin Pharm Ther} 34:103--14. \pmid{19125908}.
 \item Thai C, et al.\ (2021). A phase 1 open-label, fixed-sequence pharmacokinetic drug interaction trial to investigate the effect of cannabidiol on the CYP1A2 probe caffeine in healthy subjects. \emph{Clin Pharmacol Drug Dev} 10:1279--1289. \pmid{33951339}.
+\item Tantcheva-Po\'or I, et al.\ (1999). Estimation of cytochrome P-450 CYP1A2 activity in 863 healthy Caucasians using a saliva-based caffeine test. \emph{Pharmacogenetics} 9:131--44. \pmid{10376760}.
+\item Uche SD, et al.\ (2026). Effects of switching from smoking to vaping on clozapine concentration-dose ratios and plasma clozapine concentrations: a systematic review of case reports. \emph{Ther Drug Monit} 48:742--50.
+\item van der Plas A, et al.\ (2020). Impact of switching to a heat-not-burn tobacco product on CYP1A2 activity. \emph{Toxicol Rep} 7:1480--6. \pmid{33204648}.
+\item Vistisen K, Loft S, Poulsen HE (1991). Cytochrome P450 IA2 activity in man measured by caffeine metabolism: effect of smoking, broccoli and exercise. \emph{Adv Exp Med Biol} 283:407--11. \pmid{2069014}.
 \item White JR Jr, et al.\ (2016). Pharmacokinetic analysis and comparison of caffeine administered rapidly or slowly in coffee chilled or hot versus chilled energy drink in healthy young adults. \emph{Clin Toxicol} 54:308--12. \pmid{27100333}.
 \item Studies contributing only a half-life value are listed with their PMID in Table~\ref{tab:hl}.
 \end{enumerate}

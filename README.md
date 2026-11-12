@@ -120,6 +120,9 @@ sends. Lock-screen texts never contain grams.
   (0.52 mg per kg body weight). Body weight (default 70 kg) and bedtime (default 23:00) are in Nastavení
   (`0019_caffeine_level.sql`). Literature, model choice, validation and limits:
   `docs/caffeine-pk-model/caffeine-pk-model.pdf`; `docs/caffeine-pk-model/model.py` regenerates the constants.
+  For users who track cigarettes, their own cigarettes of the last 28 days speed up the elimination (CYP1A2
+  induction: dose-response by cigarettes in the last 24 h, follows changes with a 38.6 h half-life; report section 8,
+  `cafSmokingClearance`). Snus doesn't count. Browser only, no database change.
 - **Nicotine** (`0018_nicotine.sql`): cigarettes and snus (*sibiř*), each switched on separately; nicotine
   shows in the switcher when at least one is on. One entry = one piece (`public.intakes` with substance
   `cigarette` / `snus`, amount 1): *+1 cigareta* / *+1 sibiř* logs it at the current time (with *Zpět* to undo),

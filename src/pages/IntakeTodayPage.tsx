@@ -5,9 +5,10 @@ import { PlusIcon } from '../components/icons'
 import { CaffeineLevelCard } from '../components/CaffeineLevelCard'
 import { IntakeSheet } from '../components/IntakeSheet'
 import { Button, Card, cx, ErrorState, Loading } from '../components/ui'
-import { useIntakePresets, useIntakeStats, useNow, useSettings, useToday } from '../hooks/queries'
+import { useIntakePresets, useIntakeStats, useMyIntakes, useNow, useSettings, useToday } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import { EDIT_WINDOW_DAYS } from '../lib/days'
+import { CAF_SMOKE_WINDOW_DAYS } from '../lib/caffeinePk'
 import { round1 } from '../lib/substances'
 import { addDays, formatLongDate, formatWeekday, pragueTime, type ISODate } from '../lib/time'
 import { formatDuration, formatMg, formatNumber } from '../lib/units'
@@ -15,6 +16,7 @@ import { formatDuration, formatMg, formatNumber } from '../lib/units'
 const sum = (list: Intake[]) => round1(list.reduce((s, i) => s + i.amount, 0))
 
 const CAFFEINE = ['caffeine'] as const
+const CIGARETTES = ['cigarette'] as const
 
 /** The entry right before the first one of `day` (all lists sorted by time). */
 const entryBefore = (all: Intake[], day: Intake[]) => (day.length ? all[all.indexOf(day[0]) - 1] : undefined)
@@ -28,6 +30,9 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
   const all = useIntakeStats(CAFFEINE, today, now)
   const presets = useIntakePresets(substance)
   const settings = useSettings()
+  // Own cigarettes speed up the caffeine estimate (model version 2); only for users who log them.
+  const smokes = !!settings.data?.trackCigarettes
+  const cigarettes = useMyIntakes(CIGARETTES, addDays(today, -CAF_SMOKE_WINDOW_DAYS), today, smokes)
   const [sheet, setSheet] = useState<{ intake: Intake | null; date: ISODate } | null>(null)
 
   if (all.isPending || presets.isPending) return <Loading />
@@ -91,6 +96,7 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
         now={now}
         weightKg={settings.data?.bodyWeightKg ?? null}
         bedtime={settings.data?.bedtime ?? '23:00'}
+        cigarettes={smokes ? (cigarettes.data ?? null) : undefined}
       />
 
       <LastDaysCard

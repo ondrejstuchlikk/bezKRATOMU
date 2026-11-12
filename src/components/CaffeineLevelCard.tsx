@@ -1,7 +1,17 @@
 import { lazy, Suspense, useMemo } from 'react'
 import type { Intake } from '../api'
 import { cs } from '../i18n/cs'
-import { cafAt, cafCups, cafSeries, cafSleepRefMg, cafTimeBelow, nextClockTime } from '../lib/caffeinePk'
+import {
+  CAF_BASE_CLEARANCE,
+  CAF_KE,
+  cafAt,
+  cafCups,
+  cafSeries,
+  cafSleepRefMg,
+  cafSmokingClearance,
+  cafTimeBelow,
+  nextClockTime,
+} from '../lib/caffeinePk'
 import { addDays, formatWeekdayDate, pragueDate, pragueTime, type ISODate } from '../lib/time'
 import { formatNumber } from '../lib/units'
 import { Card } from './ui'
@@ -17,6 +27,8 @@ const MIN_FUTURE_H = 8
 
 /** Whole mg from 10 up, one decimal below. */
 const mg = (v: number) => formatNumber(v >= 10 ? Math.round(v) : Math.round(v * 10) / 10)
+/** Half-life in hours to 0.1. */
+const hours = (factor: number) => formatNumber(Math.round((10 * Math.LN2) / (CAF_KE * factor)) / 10)
 /** Cups to 0.1. */
 const cups = (v: number) => Math.round(v * 10) / 10
 
@@ -27,7 +39,8 @@ function dayWord(t: number, today: ISODate): string {
 
 /**
  * Estimated caffeine in the body from the user's own entries (src/lib/caffeinePk.ts). Only shown to the
- * owner, like the kratom estimate.
+ * owner, like the kratom estimate. With `cigarettes` (the user's own, when they log them) the elimination
+ * follows their smoking; undefined = the user doesn't log cigarettes, null = still loading.
  */
 export function CaffeineLevelCard({
   intakes,
@@ -35,35 +48,43 @@ export function CaffeineLevelCard({
   now,
   weightKg,
   bedtime,
+  cigarettes,
 }: {
   intakes: Intake[]
   today: ISODate
   now: Date
   weightKg: number | null
   bedtime: string
+  cigarettes?: Intake[] | null
 }) {
   // Recompute once a minute.
   const minute = Math.floor(now.getTime() / 60_000) * 60_000
   const refMg = cafSleepRefMg(weightKg)
 
+  const clearance = useMemo(
+    () => (cigarettes ? cafSmokingClearance(cigarettes.map((c) => new Date(c.takenAt).getTime()), minute) : CAF_BASE_CLEARANCE),
+    [cigarettes, minute],
+  )
+  const smokeFactor = clearance.factor(minute)
+
   const model = useMemo(() => {
     const past = intakes.filter((i) => new Date(i.takenAt).getTime() <= minute)
-    const current = cafAt(past, minute)
+    const current = cafAt(past, minute, clearance)
     const bed = nextClockTime(minute, bedtime)
     const futureEnd = Math.max(minute + MIN_FUTURE_H * HOUR, bed + HOUR)
-    const pastSeries = cafSeries(past, minute - PAST_H * HOUR, minute, 10)
-    const futureSeries = cafSeries(past, minute, futureEnd, 10)
+    const pastSeries = cafSeries(past, minute - PAST_H * HOUR, minute, 10, clearance)
+    const futureSeries = cafSeries(past, minute, futureEnd, 10, clearance)
     const data = [
       ...pastSeries.map((p) => ({ t: p.t, past: p.bodyMg, future: null as number | null })),
       ...futureSeries.slice(1).map((p) => ({ t: p.t, past: null as number | null, future: p.bodyMg })),
     ]
     data[pastSeries.length - 1].future = data[pastSeries.length - 1].past
     const markers = past.map((i) => new Date(i.takenAt).getTime()).filter((t) => t >= minute - PAST_H * HOUR)
-    const atBed = cafAt(past, bed).bodyMg
-    const below = cafTimeBelow(past, minute, refMg)
+    const atBed = cafAt(past, bed, clearance).bodyMg
+    const below = cafTimeBelow(past, minute, refMg, 5, clearance)
     const hasAny = past.some((i) => minute - new Date(i.takenAt).getTime() < 72 * HOUR)
     return { current, data, markers, bed, atBed, below, hasAny }
-  }, [intakes, minute, bedtime, refMg])
+  }, [intakes, minute, bedtime, refMg, clearance])
 
   const roundedBelow = model.below === null ? null : Math.round(model.below / 600_000) * 600_000
 
@@ -124,6 +145,11 @@ export function CaffeineLevelCard({
             </li>
           </ul>
           <p className="text-xs text-muted">{cs.caffeineLevel.refHint(mg(refMg))}</p>
+          {smokeFactor > 1.02 && (
+            <p className="rounded-2xl bg-bg px-3 py-2 text-xs text-muted">
+              🚬 {cs.caffeineLevel.smoking(hours(smokeFactor), hours(1))}
+            </p>
+          )}
         </>
       )}
 

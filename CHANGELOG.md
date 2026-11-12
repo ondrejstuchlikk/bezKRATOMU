@@ -5,6 +5,13 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-12
 
+- **"Kofein v těle" now takes your cigarettes into account.** Smoking makes the liver break caffeine down faster
+  (at 10 cigarettes a day about 1.5× as fast, at 20 about 1.7×). If you log cigarettes in the app, the caffeine
+  estimate now uses your own cigarettes from the last 4 weeks, and the card shows a short line with your current
+  half-life (e.g. "3,1 h instead of 5,2 h"). After you stop smoking, it goes back to normal over about a week, like
+  in studies of people who quit. Snus (*sibiř*) isn't counted: in studies only the smoke speeds it up. Only your own
+  entries are used, only in your browser; nothing new is stored or shared. The caffeine report has a new
+  section 8 with the studies and checks. No migration needed.
 - **"V těle teď" now shows how uncertain the drop is.** How fast kratom leaves the body differs between studies
   and between people, so the card now shows a range next to each "when will it drop" time (*rozmezí …*) and a light
   band around the dashed line in the chart. The fast end assumes a half-life of 20 hours and the slow end 60 hours.

@@ -101,6 +101,8 @@ export const cs = {
     belowRefWhen: (day: string, time: string) => `${day} kolem ${time}`,
     today: 'dnes',
     tomorrow: 'zítra',
+    smoking: (now: string, base: string) =>
+      `Kouření zrychluje odbourávání kofeinu. Podle cigaret, které si zapisuješ, se teď polovina odbourá asi za ${now} h (bez kouření ${base} h).`,
     refHint: (mg: string) =>
       `Kolem ${mg} mg a víc kofein podle studií v průměru zkracuje spánek. Citlivější lidé to můžou cítit i při méně – není to bezpečná hranice.`,
     disclaimer:
@@ -112,6 +114,8 @@ export const cs = {
       'Velké číslo = kofein, který se už vstřebal a tělo ho ještě neodbouralo. Šálek kávy tu znamená 100 mg (skutečné šálky mají 50–300 mg).',
       'Referenční hladina pro spánek vychází z velkého souhrnu 24 studií (2023): v průměru tolik kofeinu při usínání ještě nezkracuje spánek. Počítá se z tvé váhy (0,52 mg na kg).',
       'Váhu a čas, kdy chodíš spát, si nastavíš v Nastavení (s vybraným kofeinem).',
+      'Pokud si zapisuješ cigarety, počítá se s nimi: látky z cigaretového kouře zrychlují odbourávání kofeinu v játrech. Při 10 cigaretách denně se kofein odbourává asi o polovinu rychleji, při 20 asi o 70 % rychleji. Když přestaneš kouřit, vrací se to k normálu zhruba za týden. Počítají se jen tvoje vlastní zápisy z posledních 4 týdnů.',
+      'Sibiř (snus) se nepočítá: zrychlení dělá kouř, ne nikotin, a u lidí, kteří užívají jen bezdýmný tabák, ho studie nenašly.',
     ],
   },
 

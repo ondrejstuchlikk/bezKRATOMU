@@ -52,8 +52,8 @@ export const useProfile = (userId: string) =>
 export const useDaySocial = (userId: string, date: ISODate) =>
   useQuery({ queryKey: keys.social(userId, date), queryFn: () => backend.getDaySocial(userId, date) })
 
-export const useMyIntakes = (kinds: readonly IntakeSubstance[], from: ISODate, to: ISODate) =>
-  useQuery({ queryKey: keys.intakes(kinds, from, to), queryFn: () => backend.listMyIntakes(kinds, from, to) })
+export const useMyIntakes = (kinds: readonly IntakeSubstance[], from: ISODate, to: ISODate, enabled = true) =>
+  useQuery({ queryKey: keys.intakes(kinds, from, to), queryFn: () => backend.listMyIntakes(kinds, from, to), enabled })
 
 export const useIntakePresets = (substance: IntakeSubstance) =>
   useQuery({ queryKey: keys.presets(substance), queryFn: () => backend.listPresets(substance) })

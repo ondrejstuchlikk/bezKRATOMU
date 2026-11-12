@@ -20,5 +20,26 @@
     "150mg_after_6h": 69.51,
     "150mg_after_12h": 31.24,
     "gut_150mg_after_0.5h": 16.45
+  },
+  "smoking": {
+    "model": "ke(t) = KE*M(t); r = cigarettes in the last 24 h; M* = 1 + EMAX*r/(EC50+r); dM/dt = KDEG*(M* - M); r0 = average cigarettes/day over the first START_AVG_DAYS after the first logged cigarette (span at least 1 day); before that cigarette M = M*(r0), and the part of the 24-h window before it counts r0 per day; after now M stays at M(now); snus is not counted",
+    "EMAX": 1.0514,
+    "EC50_CIG_PER_DAY": 10.292,
+    "T_HALF_DEINDUCTION_H": 38.6,
+    "KDEG_PER_H": 0.017957,
+    "WINDOW_DAYS": 28,
+    "START_AVG_DAYS": 7,
+    "check_values": {
+      "scenario": "20 cigarettes/day at 7:00 + j*15/19 h (j = 0..19) on days 0-13, then none; t in hours from day 0 0:00; caffeine 150 mg at 13d 8:00, 13d 14:00, 15d 8:00, 15d 14:00",
+      "M_target_10": 1.5181,
+      "M_target_20": 1.6942,
+      "M_day13_23h": 1.6942,
+      "M_day16_0h": 1.3995,
+      "M_day21_0h": 1.0463,
+      "body_day13_20h": 51.29,
+      "body_day15_20h": 63.87,
+      "body_day13_23h": 26.05,
+      "max_error_vs_ode_mg": 0.05
+    }
   }
 }

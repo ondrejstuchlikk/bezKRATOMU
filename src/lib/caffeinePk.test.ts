@@ -1,7 +1,25 @@
 // Pins the model to the check values written by docs/caffeine-pk-model/model.py (ts_constants.json).
 import { describe, expect, it } from 'vitest'
 import constants from '../../docs/caffeine-pk-model/ts_constants.json'
-import { cafAt, cafCups, cafSleepRefMg, cafTimeBelow, CAF_KA, CAF_KE, CAF_SLEEP_REF_MG_PER_KG, CAF_V_L_PER_KG, nextClockTime } from './caffeinePk'
+import {
+  CAF_BASE_CLEARANCE,
+  CAF_KA,
+  CAF_KE,
+  CAF_SLEEP_REF_MG_PER_KG,
+  CAF_SMOKE_EC50,
+  CAF_SMOKE_EMAX,
+  CAF_SMOKE_KDEG,
+  CAF_SMOKE_START_AVG_DAYS,
+  CAF_SMOKE_WINDOW_DAYS,
+  CAF_V_L_PER_KG,
+  cafAt,
+  cafCups,
+  cafSleepRefMg,
+  cafSmokeTarget,
+  cafSmokingClearance,
+  cafTimeBelow,
+  nextClockTime,
+} from './caffeinePk'
 import { pragueLocalToInstant } from './time'
 
 const H = 3_600_000
@@ -57,5 +75,63 @@ describe('caffeine model', () => {
     expect(nextClockTime(late, '23:00')).toBe(pragueLocalToInstant('2026-11-09', '23:00').getTime())
     const night = pragueLocalToInstant('2026-11-08', '21:00').getTime()
     expect(nextClockTime(night, '00:30')).toBe(pragueLocalToInstant('2026-11-09', '00:30').getTime())
+  })
+})
+
+describe('smoking (model version 2)', () => {
+  const sm = constants.smoking
+  const c = sm.check_values
+  // Scenario of model.py: 20 cigarettes a day 7:00–22:00 on days 0–13, then none; caffeine 150 mg at 8:00 and 14:00
+  // on day 13 (smoking) and day 15 (quitting). Hours from day 0, 0:00.
+  const at = (h: number) => t0 + h * H
+  const cigs = Array.from({ length: 14 * 20 }, (_, i) => at(Math.floor(i / 20) * 24 + 7 + ((i % 20) * 15) / 19))
+  const coffee = [13 * 24 + 8, 13 * 24 + 14, 15 * 24 + 8, 15 * 24 + 14].map((h) => ({ takenAt: new Date(at(h)).toISOString(), amount: 150 }))
+  const now = at(21 * 24)
+  const clearance = cafSmokingClearance(cigs, now)
+
+  it('uses the constants from the report', () => {
+    expect(CAF_SMOKE_EMAX).toBe(sm.EMAX)
+    expect(CAF_SMOKE_EC50).toBe(sm.EC50_CIG_PER_DAY)
+    expect(CAF_SMOKE_KDEG).toBe(sm.KDEG_PER_H)
+    expect(CAF_SMOKE_WINDOW_DAYS).toBe(sm.WINDOW_DAYS)
+    expect(CAF_SMOKE_START_AVG_DAYS).toBe(sm.START_AVG_DAYS)
+    expect(cafSmokeTarget(10)).toBeCloseTo(c.M_target_10, 3)
+    expect(cafSmokeTarget(20)).toBeCloseTo(c.M_target_20, 3)
+    expect(cafSmokeTarget(0)).toBe(1)
+  })
+
+  it('follows smoking and quitting like model.py', () => {
+    expect(clearance.factor(at(13 * 24 + 23))).toBeCloseTo(c.M_day13_23h, 2)
+    expect(clearance.factor(at(16 * 24))).toBeCloseTo(c.M_day16_0h, 2)
+    expect(clearance.factor(at(21 * 24))).toBeCloseTo(c.M_day21_0h, 2)
+    // Before the first cigarette: as in the first week.
+    expect(clearance.factor(at(-48))).toBeCloseTo(c.M_target_20, 2)
+  })
+
+  it('matches the caffeine check values of model.py', () => {
+    expect(cafAt(coffee, at(13 * 24 + 20), clearance).bodyMg).toBeCloseTo(c.body_day13_20h, 0)
+    expect(cafAt(coffee, at(15 * 24 + 20), clearance).bodyMg).toBeCloseTo(c.body_day15_20h, 0)
+    expect(cafAt(coffee, at(13 * 24 + 23), clearance).bodyMg).toBeCloseTo(c.body_day13_23h, 0)
+  })
+
+  it('keeps the factor after now and ignores old histories', () => {
+    const mid = at(13 * 24 + 12)
+    const cl = cafSmokingClearance(cigs, mid)
+    expect(cl.factor(mid + 10 * H)).toBeCloseTo(cl.factor(mid), 6)
+    expect(cl.elim(mid, mid + 5 * H)).toBeCloseTo(CAF_KE * cl.factor(mid) * 5, 6)
+    // No cigarettes, or only ones older than the window: exactly version 1.
+    expect(cafSmokingClearance([], now)).toBe(CAF_BASE_CLEARANCE)
+    expect(cafSmokingClearance(cigs, at(14 * 24 + CAF_SMOKE_WINDOW_DAYS * 24))).toBe(CAF_BASE_CLEARANCE)
+    // Cigarettes after now don't count yet.
+    expect(cafSmokingClearance(cigs, at(-1))).toBe(CAF_BASE_CLEARANCE)
+  })
+
+  it('makes the caffeine disappear faster for a smoker', () => {
+    const base = cafAt(coffee, at(13 * 24 + 23)).bodyMg
+    const smoker = cafAt(coffee, at(13 * 24 + 23), clearance).bodyMg
+    expect(smoker).toBeLessThan(base / 2)
+    const tBase = cafTimeBelow(coffee.slice(0, 2), at(13 * 24 + 15), 36)!
+    const tSmoker = cafTimeBelow(coffee.slice(0, 2), at(13 * 24 + 15), 36, 5, clearance)!
+    expect(tSmoker).toBeLessThan(tBase)
   })
 })

@@ -288,6 +288,139 @@ DAY_BED, DAY_BED_LO, DAY_BED_HI = fig_day()
 t_ref150 = brentq(lambda x: 150 * float(body(x)) - REF_MG, TM, 72)
 
 # ---------------------------------------------------------------------------------------------
+# 8. Version 2: smoking (option D for cigarettes only, report section "Smoking").
+#    Elimination rate ke(t) = KE * M(t). M(t) follows CYP1A2 turnover towards a target set by the
+#    cigarettes smoked in the last 24 h:
+#        r(t)  = cigarettes in (t - 24 h, t]
+#        M*(r) = 1 + EMAX * r / (EC50 + r)          (dose-response, fitted to Tantcheva-Poor 1999)
+#        dM/dt = KDEG * (M* - M),  KDEG = ln 2 / 38.6 h  (Faber 2004, cessation of heavy smoking)
+#    Snus / smokeless tobacco and nicotine replacement: no adjustment (no in-vivo induction).
+# ---------------------------------------------------------------------------------------------
+from scipy.optimize import curve_fit
+
+# Caffeine clearance relative to non-smokers by cigarettes/day (Tantcheva-Poor 1999, n = 786, saliva
+# caffeine clearance, analysis of covariance). Category midpoints; ">20" taken as 25.
+SMOKE_TP = [("1--5", 3.0, 1.22), ("6--10", 8.0, 1.47), ("11--20", 15.5, 1.66), ("$>$20", 25.0, 1.72)]
+# Independent check: hepatic CYP1A2 abundance by cigarettes/day relative to 0 (Plowchalk 2012: 52, 64, 79, 90, 94 pmol/mg).
+SMOKE_PLOW = [(3.0, 64 / 52), (8.0, 79 / 52), (15.5, 90 / 52), (25.0, 94 / 52)]
+
+def m_target(r, emax, ec50):
+    return 1 + emax * np.asarray(r, float) / (ec50 + np.asarray(r, float))
+
+_r = np.array([s[1] for s in SMOKE_TP]); _m = np.array([s[2] for s in SMOKE_TP])
+(SM_EMAX, SM_EC50), _ = curve_fit(lambda r, e, c: np.log(m_target(r, e, c)), _r, np.log(_m), p0=[1, 8])
+SM_EMAX, SM_EC50 = float(SM_EMAX), float(SM_EC50)
+T_DEIND = 38.6                       # h, apparent half-life of CYP1A2 activity decrease (95 % CI 27.4-54.4)
+KDEG = np.log(2) / T_DEIND
+SM_WINDOW_DAYS = 28                  # cigarettes older than this no longer matter (2^-17)
+SM_START_AVG_DAYS = 7                # before the first logged cigarette: steady state at the first week's rate
+
+def M_ss(r):
+    return float(m_target(r, SM_EMAX, SM_EC50))
+
+# Smoker / non-smoker comparisons not used for the fit (clearance ratios; within = same people).
+SMOKE_VALID = [  # (label, PMID, design, observed ratio, model ratio, note)
+    ("Parsons 1978", 657717, "13 smokers vs 13 non-smokers", 155 / 94, M_ss(20), "cigarettes/day not given; 20 assumed"),
+    ("Joeres 1988", 3371873, "8 smokers vs 15 non-smokers", 114 / 64, M_ss(20), "20 assumed"),
+    ("Seng 2009", 19125908, "population PK, 59 men", (110 + 114) / 114, M_ss(20), "20 assumed"),
+    ("Faber 2004", 15289794, "12 heavy smokers, before vs 13 d after quitting", 2.47 / 1.53, M_ss(25), "$\\geq$20/day"),
+    ("Joeres 1988", 3371873, "7 smokers, before vs 3 weeks after quitting", 118 / 77, M_ss(20) / (1 + (M_ss(20) - 1) * np.exp(-KDEG * 21 * 24)), "20 assumed"),
+    ("Benowitz 2003", 14586387, "12 smokers, smoking vs 7 d of air", 2.0 / 1.5, M_ss(20) / (1 + (M_ss(20) - 1) * np.exp(-KDEG * 7 * 24)), "20 assumed"),
+    ("Brown 1988", 3365914, "9 smokers, 24-h AUC after 4 d abstinence", 1.46, M_ss(20) / (1 + (M_ss(20) - 1) * np.exp(-KDEG * 4 * 24)), "AUC ratio; 20 assumed"),
+]
+
+def smoking_M(cig_h, grid_h, now_h):
+    """App algorithm (src/lib/caffeinePk.ts): M on a grid (hours), exact step for a piecewise constant target."""
+    cig = np.sort(np.asarray(cig_h, float))
+    cig = cig[cig <= now_h]
+    M = np.ones_like(grid_h, dtype=float)
+    if not len(cig):
+        return M
+    t0 = cig[0]
+    span_d = min(SM_START_AVG_DAYS, max(1.0, (now_h - t0) / 24))
+    r0 = np.sum(cig < t0 + span_d * 24) / span_d
+    m = M_ss(r0); prev = None
+    for i, t in enumerate(grid_h):
+        tt = min(t, now_h)
+        if tt <= t0:
+            m = M_ss(r0)
+        elif prev is not None and prev < tt:
+            # Part of the 24-h window before the first logged cigarette counts at the assumed earlier rate r0.
+            r = np.sum((cig > tt - 24) & (cig <= tt)) + r0 * max(0.0, t0 - (tt - 24)) / 24
+            tgt = M_ss(r)
+            m = tgt + (m - tgt) * np.exp(-KDEG * (tt - prev))
+        M[i] = m
+        prev = tt if tt > t0 else t0
+    return M
+
+def caffeine_with_M(doses, t, M_of_t):
+    """Reference solution: integrate gut/body ODE with ke(t) = KE*M(t) (fine Euler-exponential steps)."""
+    out = np.zeros_like(t); dt = t[1] - t[0]
+    gut_amt = 0.0; bod = 0.0; di = sorted(doses)
+    k = 0
+    for i, ti in enumerate(t):
+        while k < len(di) and di[k][0] <= ti + 1e-9:
+            gut_amt += di[k][1]; k += 1
+        out[i] = bod
+        ke = KE * M_of_t(ti)
+        a = gut_amt * KA * dt * np.exp(-KA * dt / 2)
+        gut_amt *= np.exp(-KA * dt)
+        bod = bod * np.exp(-ke * dt) + a * np.exp(-ke * dt / 2)
+    return out
+
+def caffeine_app(doses, t, lam_of_t, M_of_t):
+    """App approximation: each dose uses ke at its own time for the absorption term, exact Lambda for elimination."""
+    out = np.zeros_like(t)
+    for td, D in doses:
+        h = t - td; ok = h >= 0
+        ke_i = KE * M_of_t(td)
+        out[ok] += D * KA / (KA - ke_i) * (np.exp(-(lam_of_t(t[ok]) - lam_of_t(td))) - np.exp(-KA * h[ok]))
+    return out
+
+# Scenario for figures, checks and tests: 20 cigarettes/day 7:00-22:00 for 14 days, then stop (day 14, 0:00).
+SC_DAYS = 21
+sc_cigs = [d * 24 + 7 + j * 15 / 19 for d in range(14) for j in range(20)]
+sc_grid = np.arange(0, SC_DAYS * 24 + 1e-9, 0.25)
+sc_now = SC_DAYS * 24
+sc_M = smoking_M(sc_cigs, sc_grid, sc_now)
+SC_M_SMOKING = float(np.interp(13 * 24 + 23, sc_grid, sc_M))
+SC_M_2D = float(np.interp(16 * 24, sc_grid, sc_M))
+SC_M_7D = float(np.interp(21 * 24, sc_grid, sc_M))
+SC_THALF_SMOKING = T_HALF / SC_M_SMOKING
+
+# Compare app approximation with the ODE: 150 mg at 8:00 and 150 mg at 14:00 on day 13 (smoking) and day 15 (quitting).
+_lam_cum = np.concatenate([[0], np.cumsum(KE * (sc_M[1:] + sc_M[:-1]) / 2 * np.diff(sc_grid))])
+lam_of_t = lambda x: np.interp(x, sc_grid, _lam_cum)
+M_of_t = lambda x: float(np.interp(x, sc_grid, sc_M))
+sc_doses = [(13 * 24 + 8, 150.0), (13 * 24 + 14, 150.0), (15 * 24 + 8, 150.0), (15 * 24 + 14, 150.0)]
+_tt = np.arange(12 * 24, 17 * 24, 1 / 60)
+_ode = caffeine_with_M(sc_doses, _tt, M_of_t)
+_app = caffeine_app(sc_doses, _tt, lam_of_t, M_of_t)
+SC_MAX_ERR_MG = float(np.max(np.abs(_ode - _app)))
+SC_BODY = {lab: float(np.interp(h, _tt, _app)) for lab, h in
+           [("day13_20h", 13 * 24 + 20), ("day15_20h", 15 * 24 + 20), ("day13_23h", 13 * 24 + 23)]}
+# Same doses without smoking (baseline) at 23:00 on day 13.
+SC_BODY_BASE_23 = float(150 * body(15) + 150 * body(9))
+
+def fig_smoking():
+    fig, ax = plt.subplots(1, 2, figsize=(7.2, 2.7))
+    rr = np.linspace(0, 40, 200)
+    ax[0].plot(rr, m_target(rr, SM_EMAX, SM_EC50), color=C_BODY, label="model $M^*(r)$")
+    ax[0].plot(_r, _m, "o", color=C_BODY, ms=4, label="Tantcheva-Poór 1999 (fit)")
+    ax[0].plot([p[0] for p in SMOKE_PLOW], [p[1] for p in SMOKE_PLOW], "s", mfc="none", color=C_REF, ms=4,
+               label="Plowchalk 2012 (CYP1A2 abundance)")
+    ax[0].set_xlabel("cigarettes in the last 24 h"); ax[0].set_ylabel("caffeine clearance vs. non-smoker")
+    ax[0].set_ylim(0.9, 2.1); ax[0].legend(fontsize=6.5, loc="lower right"); ax[0].set_title("a  dose-response", fontsize=9, loc="left")
+    d = sc_grid / 24
+    ax[1].plot(d, T_HALF / sc_M, color=C_BODY)
+    ax[1].axhline(T_HALF, color=C_GREY, ls=":", lw=1); ax[1].text(0.3, T_HALF + 0.1, "non-smoker", fontsize=7, color=C_GREY)
+    ax[1].axvline(14, color=C_ALT, ls="--", lw=1); ax[1].text(13.7, 4.3, "stops\nsmoking", fontsize=7, color=C_ALT, ha="right")
+    ax[1].set_xlabel("day"); ax[1].set_ylabel("caffeine half-life (h)"); ax[1].set_ylim(2.5, 5.8)
+    ax[1].set_title("b  20 cigarettes/day, then quitting", fontsize=9, loc="left")
+    fig.tight_layout(); fig.savefig(os.path.join(FIG, "smoking.pdf")); plt.close(fig)
+fig_smoking()
+
+# ---------------------------------------------------------------------------------------------
 # Outputs
 # ---------------------------------------------------------------------------------------------
 N_ = {
@@ -306,6 +439,12 @@ N_ = {
     "dayBed": f"{DAY_BED:.0f}", "dayBedLo": f"{DAY_BED_LO:.0f}", "dayBedHi": f"{DAY_BED_HI:.0f}",
     "tHalfTen": f"{T_HALF_10:.1f}", "tHalfNinety": f"{T_HALF_90:.1f}", "tRefOneFifty": f"{t_ref150:.1f}",
     "cupMg": f"{CUP_MG:.0f}",
+    "smEmax": f"{SM_EMAX:.2f}", "smEcfifty": f"{SM_EC50:.1f}", "smTdeind": f"{T_DEIND:.1f}",
+    "smMten": f"{M_ss(10):.2f}", "smMtwenty": f"{M_ss(20):.2f}", "smMforty": f"{M_ss(40):.2f}", "smMfive": f"{M_ss(5):.2f}",
+    "smThalfTen": f"{T_HALF / M_ss(10):.1f}", "smThalfTwenty": f"{T_HALF / M_ss(20):.1f}", "smThalfFive": f"{T_HALF / M_ss(5):.1f}",
+    "smScM": f"{SC_M_SMOKING:.2f}", "smScMtwo": f"{SC_M_2D:.2f}", "smScMseven": f"{SC_M_7D:.2f}",
+    "smMaxErr": f"{SC_MAX_ERR_MG:.2f}", "smBedSmoke": f"{SC_BODY['day13_23h']:.0f}", "smBedBase": f"{SC_BODY_BASE_23:.0f}",
+    "smWindow": f"{SM_WINDOW_DAYS}", "smStartAvg": f"{SM_START_AVG_DAYS}",
 }
 with open(os.path.join(HERE, "numbers.tex"), "w") as f:
     for k, v in N_.items():
@@ -326,6 +465,9 @@ with open(os.path.join(HERE, "tables.tex"), "w") as f:
     f.write("}\n\\newcommand{\\cltable}{%\n")
     for lab, v in CL_REPORTED:
         f.write(f"{tex_escape(lab)} & {v:.2f}\\\\\n")
+    f.write("}\n\\newcommand{\\smoketable}{%\n")
+    for lab, pmid, design, o, m, note in SMOKE_VALID:
+        f.write(f"{lab} & {tex_escape(design)} & {o:.2f} & {m:.2f} & {m / o:.2f} & {note}\\\\\n")
     f.write("}\n\\newcommand{\\voltable}{%\n")
     for lab, v in VOLUMES:
         f.write(f"{tex_escape(lab)} & {v:.2f}\\\\\n")
@@ -346,8 +488,25 @@ json.dump({
     },
     "check_values": {"150mg_after_1h": round(150 * float(body(1)), 2), "150mg_after_6h": round(150 * float(body(6)), 2),
                      "150mg_after_12h": round(150 * float(body(12)), 2), "gut_150mg_after_0.5h": round(150 * float(gut(0.5)), 2)},
+    "smoking": {
+        "model": "ke(t) = KE*M(t); r = cigarettes in the last 24 h; M* = 1 + EMAX*r/(EC50+r); dM/dt = KDEG*(M* - M); "
+                 "r0 = average cigarettes/day over the first START_AVG_DAYS after the first logged cigarette (span at least 1 day); before that cigarette M = M*(r0), and the part of the 24-h window before it counts r0 per day; "
+                 "after now M stays at M(now); snus is not counted",
+        "EMAX": round(SM_EMAX, 4), "EC50_CIG_PER_DAY": round(SM_EC50, 3), "T_HALF_DEINDUCTION_H": T_DEIND,
+        "KDEG_PER_H": round(float(KDEG), 6), "WINDOW_DAYS": SM_WINDOW_DAYS, "START_AVG_DAYS": SM_START_AVG_DAYS,
+        "check_values": {
+            "scenario": "20 cigarettes/day at 7:00 + j*15/19 h (j = 0..19) on days 0-13, then none; t in hours from day 0 0:00; "
+                        "caffeine 150 mg at 13d 8:00, 13d 14:00, 15d 8:00, 15d 14:00",
+            "M_target_10": round(M_ss(10), 4), "M_target_20": round(M_ss(20), 4),
+            "M_day13_23h": round(SC_M_SMOKING, 4), "M_day16_0h": round(SC_M_2D, 4), "M_day21_0h": round(SC_M_7D, 4),
+            "body_day13_20h": round(SC_BODY["day13_20h"], 2), "body_day15_20h": round(SC_BODY["day15_20h"], 2),
+            "body_day13_23h": round(SC_BODY["day13_23h"], 2), "max_error_vs_ode_mg": round(SC_MAX_ERR_MG, 3),
+        },
+    },
 }, open(os.path.join(HERE, "ts_constants.json"), "w"), indent=2, ensure_ascii=False)
 
 print(json.dumps(N_, indent=1, ensure_ascii=False))
+for row in SMOKE_VALID:
+    print(f"  {row[0]:15s} {row[2]:50s} obs {row[3]:.2f} model {row[4]:.2f} ratio {row[4] / row[3]:.2f}")
 for (lab, d, o, p), (_, _, _, pp) in zip(VALID, VALID_POP):
     print(f"  {lab:55s} obs {o:6.2f} typical {p:6.2f} pop-mean {pp:6.2f} ratio {pp / o:.2f}")

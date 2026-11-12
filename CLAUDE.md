@@ -212,6 +212,11 @@ Marek, Bára — all PIN `123456`.
   adjustment); caffeine only (no paraxanthine line); sleep: projection at the user's bedtime plus a soft reference
   level from the literature, labelled as such; body weight default 70 kg, editable in Nastavení. Report in English,
   LaTeX → PDF in `docs/caffeine-pk-model/` with `model.py`, peer-reviewed sources only.
+- Caffeine model version 2 (2026-11-12, user OK'd using the own cigarette log for the own caffeine estimate):
+  `cafSmokingClearance` in `caffeinePk.ts`; ke × M(t), M follows 1 + 1.05·r/(10.3 + r) (r = cigarettes in the last
+  24 h, Tantcheva-Poór 1999) with a 38.6 h half-life (Faber 2004); only when `trackCigarettes`; snus not counted;
+  projection keeps M at its current value. Constants under `smoking` in `ts_constants.json`; report section 8.
+  Contraceptives/pregnancy still deliberately not used.
 - Types: `Substance` = what the switcher shows (`kratom | caffeine | nicotine`); `IntakeSubstance` = the value in
   `public.intakes.substance` (`caffeine | cigarette | snus`). `listMyIntakes` takes a list of kinds.
 
