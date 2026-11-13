@@ -9,7 +9,15 @@ import { slugifyNickname } from '../lib/nickname'
 import { buildPlanDays, customPlanParams, type Curve, type PauseRecord, type PlanDay, type PlanRecord, type Preset } from '../lib/plan'
 import { addDays, pragueDate, pragueLocalToInstant, pragueToday, type ISODate } from '../lib/time'
 import { gramsToCg, round2 } from '../lib/units'
-import { MAX_CAFFEINE_MG, MAX_PRESET_COUNT, MAX_PRESET_MG, MAX_PRESET_NAME, round1, type IntakeSubstance } from '../lib/substances'
+import {
+  MAX_CAFFEINE_MG,
+  MAX_PRESET_COUNT,
+  MAX_PRESET_MG,
+  MAX_PRESET_NAME,
+  round1,
+  validDrinkMinutes,
+  type IntakeSubstance,
+} from '../lib/substances'
 import {
   AppError,
   REACTION_EMOJIS,
@@ -53,6 +61,7 @@ interface DemoUser {
   snusPackSize?: number
   bodyWeightKg?: number | null
   bedtime?: string
+  caffeineDrinkMinutes?: number
   /** Default caffeine presets were created (mirrors private.seed_intake_presets). */
   presetsSeeded?: boolean
   /** Simulated friend: doses are generated instead of stored. */
@@ -321,6 +330,7 @@ function botCaffeine(user: DemoUser, now: Date): DemoIntake[] {
         amount: big ? 150 : 75,
         presetName: big ? 'Velký energeťák' : 'Malý energeťák',
         presetCount: 1,
+        drinkMinutes: null,
       })
     })
   }
@@ -350,6 +360,7 @@ function botNicotine(user: DemoUser, now: Date): DemoIntake[] {
         amount: 1,
         presetName: null,
         presetCount: null,
+        drinkMinutes: null,
       })
     }
   }
@@ -390,8 +401,8 @@ export function createDemoBackend(): Backend {
       u.presetsSeeded = true
       const createdAt = new Date().toISOString()
       presets().push(
-        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Velký energeťák', amountMg: 150, sortOrder: 1, createdAt },
-        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Malý energeťák', amountMg: 75, sortOrder: 2, createdAt },
+        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Velký energeťák', amountMg: 150, sortOrder: 1, drinkMinutes: null, createdAt },
+        { id: uid(), userId: u.id, substance: 'caffeine', name: 'Malý energeťák', amountMg: 75, sortOrder: 2, drinkMinutes: null, createdAt },
       )
     }
   }
@@ -559,7 +570,12 @@ export function createDemoBackend(): Backend {
     if (input.presetCount !== null && !(input.presetCount > 0 && input.presetCount <= MAX_PRESET_COUNT)) {
       throw new AppError('unknown', 'invalid_preset_count')
     }
+    // Mirrors the checks on intakes.drink_minutes (0020).
+    if (input.drinkMinutes != null && (input.substance !== 'caffeine' || !validDrinkMinutes(input.drinkMinutes))) {
+      throw new AppError('unknown', 'invalid_drink_minutes')
+    }
     return {
+      ...(input.drinkMinutes !== undefined && { drinkMinutes: input.drinkMinutes }),
       takenAt: input.takenAt.toISOString(),
       localDate,
       amount: round1(input.amount),
@@ -579,7 +595,8 @@ export function createDemoBackend(): Backend {
     const name = input.name.trim()
     if (!name || name.length > MAX_PRESET_NAME) throw new AppError('unknown', 'invalid_name')
     if (!(input.amountMg > 0 && input.amountMg <= MAX_PRESET_MG)) throw new AppError('unknown', 'invalid_amount')
-    return { name, amountMg: round1(input.amountMg) }
+    if (input.drinkMinutes !== null && !validDrinkMinutes(input.drinkMinutes)) throw new AppError('unknown', 'invalid_drink_minutes')
+    return { name, amountMg: round1(input.amountMg), drinkMinutes: input.drinkMinutes }
   }
 
   function ownPreset(id: string): DemoPreset {
@@ -588,7 +605,8 @@ export function createDemoBackend(): Backend {
     return p
   }
 
-  const toPreset = ({ userId: _u, createdAt: _c, ...p }: DemoPreset): IntakePreset => p
+  // Demo data saved before 0020 has no drinkMinutes.
+  const toPreset = ({ userId: _u, createdAt: _c, ...p }: DemoPreset): IntakePreset => ({ ...p, drinkMinutes: p.drinkMinutes ?? null })
 
   return {
     mode: 'demo',
@@ -683,6 +701,7 @@ export function createDemoBackend(): Backend {
         snusPackSize: u.snusPackSize ?? 20,
         bodyWeightKg: u.bodyWeightKg ?? null,
         bedtime: u.bedtime ?? '23:00',
+        caffeineDrinkMinutes: u.caffeineDrinkMinutes ?? 0,
       }
     },
 
@@ -707,6 +726,10 @@ export function createDemoBackend(): Backend {
       if (patch.bedtime !== undefined) {
         if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(patch.bedtime)) throw new AppError('unknown', 'invalid_bedtime')
         u.bedtime = patch.bedtime
+      }
+      if (patch.caffeineDrinkMinutes !== undefined) {
+        if (!validDrinkMinutes(patch.caffeineDrinkMinutes)) throw new AppError('unknown', 'invalid_drink_minutes')
+        u.caffeineDrinkMinutes = patch.caffeineDrinkMinutes
       }
       save()
     },
@@ -830,14 +853,14 @@ export function createDemoBackend(): Backend {
       return intakes()
         .filter((i) => i.userId === user.id && substances.includes(i.substance) && i.localDate >= from && i.localDate <= to)
         .sort((a, b) => a.takenAt.localeCompare(b.takenAt))
-        .map(({ userId: _userId, ...i }) => i)
+        .map(({ userId: _userId, ...i }) => ({ ...i, drinkMinutes: i.drinkMinutes ?? null }))
     },
 
     async addIntake(input) {
       await delay()
       const user = me()
       const id = uid()
-      intakes().push({ id, userId: user.id, substance: input.substance, ...intakeFromInput(input) })
+      intakes().push({ id, userId: user.id, substance: input.substance, drinkMinutes: null, ...intakeFromInput(input) })
       save()
       return id
     },

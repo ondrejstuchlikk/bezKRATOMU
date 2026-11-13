@@ -8,7 +8,7 @@ import { PresetForm } from '../components/PresetForm'
 import { Button, Card, ErrorState, errorMessage, inputClass, Loading, PageHeader, Segmented, Toggle } from '../components/ui'
 import { keys, useIntakePresets, useSettings } from '../hooks/queries'
 import { useSubstance } from '../hooks/substance'
-import type { NicotineForm } from '../lib/substances'
+import { MAX_DRINK_MINUTES, type NicotineForm } from '../lib/substances'
 import { cs } from '../i18n/cs'
 import { disablePushOnThisDevice } from '../lib/push'
 import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme'
@@ -231,6 +231,18 @@ function CaffeineLevelSettings({ settings }: { settings: MySettings }) {
         </div>
         <p className={error ? 'text-sm text-over' : 'text-sm text-muted'}>{error ?? cs.settings.bedtimeHint}</p>
       </div>
+      <NumberSetting
+        label={cs.settings.drinkTime}
+        hint={cs.settings.drinkTimeHint}
+        placeholder="0"
+        suffix="min"
+        value={settings.caffeineDrinkMinutes}
+        max={MAX_DRINK_MINUTES}
+        field="caffeineDrinkMinutes"
+        integer
+        required
+        allowZero
+      />
     </Card>
   )
 }
@@ -307,7 +319,10 @@ function PresetSettings({ substance }: { substance: 'caffeine' }) {
                   className="flex min-h-12 w-full items-center gap-3 text-left"
                 >
                   <span className="flex-1 font-semibold">{p.name}</span>
-                  <span className="text-muted tabular-nums">{formatMg(p.amountMg)}</span>
+                  <span className="text-muted tabular-nums">
+                    {formatMg(p.amountMg)}
+                    {p.drinkMinutes !== null && ` · ${cs.caffeine.drinkTime(p.drinkMinutes)}`}
+                  </span>
                   <span className="text-muted">›</span>
                 </button>
               </li>
@@ -337,6 +352,7 @@ function NumberSetting({
   field,
   integer = false,
   required = false,
+  allowZero = false,
   min,
 }: {
   label: string
@@ -345,13 +361,23 @@ function NumberSetting({
   suffix: string
   value: number | null
   max: number
-  field: 'teaspoonGrams' | 'pricePerGram' | 'cigarettePackPrice' | 'snusPackPrice' | 'cigarettePackSize' | 'snusPackSize' | 'bodyWeightKg'
+  field:
+    | 'teaspoonGrams'
+    | 'pricePerGram'
+    | 'cigarettePackPrice'
+    | 'snusPackPrice'
+    | 'cigarettePackSize'
+    | 'snusPackSize'
+    | 'bodyWeightKg'
+    | 'caffeineDrinkMinutes'
   /** Lowest allowed value (exclusive 0 by default). */
   min?: number
   /** Whole numbers only. */
   integer?: boolean
   /** Can't be left empty. */
   required?: boolean
+  /** 0 is a valid value. */
+  allowZero?: boolean
 }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState(value === null ? '' : formatNumber(value))
@@ -362,7 +388,7 @@ function NumberSetting({
   const invalid =
     (parsed === null && required) ||
     (parsed !== null &&
-      (Number.isNaN(parsed) || parsed <= 0 || (min !== undefined && parsed < min) || parsed > max || (integer && !Number.isInteger(parsed))))
+      (Number.isNaN(parsed) || parsed < 0 || (parsed === 0 && !allowZero) || (min !== undefined && parsed < min) || parsed > max || (integer && !Number.isInteger(parsed))))
   const changed = parsed !== value
 
   async function save() {

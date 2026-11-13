@@ -96,6 +96,7 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
         now={now}
         weightKg={settings.data?.bodyWeightKg ?? null}
         bedtime={settings.data?.bedtime ?? '23:00'}
+        drinkMinutes={settings.data?.caffeineDrinkMinutes ?? 0}
         cigarettes={smokes ? (cigarettes.data ?? null) : undefined}
       />
 

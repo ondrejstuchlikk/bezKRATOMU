@@ -135,3 +135,47 @@ describe('smoking (model version 2)', () => {
     expect(tSmoker).toBeLessThan(tBase)
   })
 })
+
+describe('drinking time', () => {
+  const c = constants.drink_time.check_values
+  const sip = (mg: number, minutes: number, hoursAfterT0 = 0) => ({ ...dose(mg, hoursAfterT0), minutes })
+
+  it('matches the check values of model.py', () => {
+    expect(cafAt([sip(150, 60)], t0 + 0.5 * H).bodyMg).toBeCloseTo(c['150mg_60min_after_0.5h'], 1)
+    expect(cafAt([sip(150, 60)], t0 + 1 * H).bodyMg).toBeCloseTo(c['150mg_60min_after_1h'], 1)
+    expect(cafAt([sip(150, 60)], t0 + 6 * H).bodyMg).toBeCloseTo(c['150mg_60min_after_6h'], 1)
+    expect(cafAt([sip(150, 60)], t0 + 12 * H).bodyMg).toBeCloseTo(c['150mg_60min_after_12h'], 1)
+    expect(cafAt([sip(150, 60)], t0 + 0.5 * H).gutMg).toBeCloseTo(c['gut_150mg_60min_after_0.5h'], 1)
+    expect(cafAt([sip(150, 60)], t0 + 0.5 * H).undrunkMg).toBeCloseTo(c['undrunk_150mg_60min_after_0.5h'], 6)
+  })
+
+  it('is the single dose for 0 minutes and close to it for very short drinking', () => {
+    for (const h of [0.3, 1, 6]) {
+      const once = cafAt([dose(150)], t0 + h * H).bodyMg
+      expect(cafAt([sip(150, 0)], t0 + h * H).bodyMg).toBe(once)
+      expect(cafAt([sip(150, 0.01)], t0 + h * H).bodyMg).toBeCloseTo(once, 1)
+    }
+    expect(cafAt([sip(150, 30)], t0).undrunkMg).toBe(150)
+    expect(cafAt([sip(150, 30)], t0 + 1 * H).undrunkMg).toBe(0)
+  })
+
+  it('keeps counting a drink that is still being sipped in the projection', () => {
+    // 20 mg sipped over an hour, 10 min in: still rising, so not "below already" but after the coming peak.
+    const from = t0 + (10 / 60) * H
+    expect(cafTimeBelow([sip(20, 60)], from, 36)!).toBeGreaterThan(t0 + 1 * H)
+    expect(cafTimeBelow([sip(200, 60)], from, 36)!).toBeGreaterThan(cafTimeBelow([dose(200)], from, 36)!)
+  })
+
+  it('matches model.py with smoking', () => {
+    const at = (h: number) => t0 + h * H
+    const cigs = Array.from({ length: 14 * 20 }, (_, i) => at(Math.floor(i / 20) * 24 + 7 + ((i % 20) * 15) / 19))
+    const coffee = [13 * 24 + 8, 13 * 24 + 14, 15 * 24 + 8, 15 * 24 + 14].map((h) => ({
+      takenAt: new Date(at(h)).toISOString(),
+      amount: 150,
+      minutes: 60,
+    }))
+    const clearance = cafSmokingClearance(cigs, at(21 * 24))
+    expect(cafAt(coffee, at(13 * 24 + 20), clearance).bodyMg).toBeCloseTo(c.smoking_scenario_60min_body_day13_20h, 0)
+    expect(cafAt(coffee, at(15 * 24 + 20), clearance).bodyMg).toBeCloseTo(c.smoking_scenario_60min_body_day15_20h, 0)
+  })
+})

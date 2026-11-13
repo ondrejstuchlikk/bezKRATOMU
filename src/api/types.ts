@@ -37,6 +37,8 @@ export interface MySettings {
   /** For the caffeine estimate: body weight (null = default 70 kg) and bedtime ("HH:MM", Prague). */
   bodyWeightKg: number | null
   bedtime: string
+  /** Default drinking time of a caffeine drink in minutes (0 = all at once), for entries without their own. */
+  caffeineDrinkMinutes: number
   /** Latest version of the "new substances" window the user has closed (SUBSTANCES_INTRO_VERSION). */
   substancesIntroSeen: number
 }
@@ -94,6 +96,8 @@ export interface Intake {
   /** Name of the preset used (a copy, so later preset edits don't change it); null = amount typed in. */
   presetName: string | null
   presetCount: number | null
+  /** Caffeine: minutes the drink is sipped over, starting at takenAt (copy of the preset's); null = the default. */
+  drinkMinutes: number | null
 }
 
 export interface IntakeInput {
@@ -102,6 +106,8 @@ export interface IntakeInput {
   amount: number
   presetName: string | null
   presetCount: number | null
+  /** Caffeine only; omitted = unchanged on update, null on insert. */
+  drinkMinutes?: number | null
 }
 
 /** A user's own drink for quick logging, like the teaspoon for kratom (public.intake_presets). */
@@ -111,11 +117,14 @@ export interface IntakePreset {
   name: string
   amountMg: number
   sortOrder: number
+  /** Minutes the drink is usually sipped over; null = the default from settings. */
+  drinkMinutes: number | null
 }
 
 export interface IntakePresetInput {
   name: string
   amountMg: number
+  drinkMinutes: number | null
 }
 
 export interface DayResult {

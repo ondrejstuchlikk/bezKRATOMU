@@ -26,6 +26,13 @@ export const MAX_PRESET_MG = 1000
 /** Largest number of one preset in one entry (CHECK on public.intakes.preset_count). */
 export const MAX_PRESET_COUNT = 20
 export const MAX_PRESET_NAME = 40
+/** Longest drinking time of one caffeine drink in minutes (CHECKs in 0020_caffeine_drink_time.sql). */
+export const MAX_DRINK_MINUTES = 300
+
+/** Whole minutes from 0 (all at once) to MAX_DRINK_MINUTES. */
+export function validDrinkMinutes(minutes: number): boolean {
+  return Number.isInteger(minutes) && minutes >= 0 && minutes <= MAX_DRINK_MINUTES
+}
 
 export interface TrackingSettings {
   trackCaffeine: boolean

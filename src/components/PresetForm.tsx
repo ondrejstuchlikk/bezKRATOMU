@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { backend, type IntakePreset } from '../api'
-import { keys } from '../hooks/queries'
+import { keys, useSettings } from '../hooks/queries'
 import { cs } from '../i18n/cs'
-import { MAX_PRESET_MG, MAX_PRESET_NAME, round1, type IntakeSubstance } from '../lib/substances'
+import { MAX_PRESET_MG, MAX_PRESET_NAME, round1, validDrinkMinutes, type IntakeSubstance } from '../lib/substances'
 import { formatNumber, parseDecimal } from '../lib/units'
 import { Button, errorMessage, inputClass } from './ui'
 
@@ -19,13 +19,17 @@ export function PresetForm({
   onDone: (saved: IntakePreset | null | undefined) => void
 }) {
   const queryClient = useQueryClient()
+  const settings = useSettings()
   const [name, setName] = useState(preset?.name ?? '')
   const [mg, setMg] = useState(preset ? formatNumber(preset.amountMg) : '')
+  const [minutes, setMinutes] = useState(preset?.drinkMinutes == null ? '' : String(preset.drinkMinutes))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const amount = parseDecimal(mg)
-  const valid = name.trim().length > 0 && amount > 0 && amount <= MAX_PRESET_MG
+  const drinkMinutes = minutes.trim() === '' ? null : Number(minutes.trim())
+  const validMinutes = drinkMinutes === null || validDrinkMinutes(drinkMinutes)
+  const valid = name.trim().length > 0 && amount > 0 && amount <= MAX_PRESET_MG && validMinutes
 
   async function run(action: () => Promise<IntakePreset | null>) {
     setBusy(true)
@@ -42,7 +46,7 @@ export function PresetForm({
 
   const save = () =>
     run(async () => {
-      const input = { name: name.trim(), amountMg: round1(amount) }
+      const input = { name: name.trim(), amountMg: round1(amount), drinkMinutes }
       if (!preset) return backend.addPreset(substance, input)
       await backend.updatePreset(preset.id, input)
       return { ...preset, ...input }
@@ -74,10 +78,26 @@ export function PresetForm({
           <input className={inputClass + ' bg-surface'} inputMode="decimal" value={mg} placeholder="80" onChange={(e) => setMg(e.target.value)} />
         </label>
       </div>
+      <label className="block space-y-1">
+        <span className="text-sm font-semibold">{cs.caffeine.preset.minutes}</span>
+        <div className="relative">
+          <input
+            className={inputClass + ' bg-surface'}
+            inputMode="numeric"
+            value={minutes}
+            placeholder={cs.caffeine.preset.minutesPlaceholder(cs.caffeine.drinkTime(settings.data?.caffeineDrinkMinutes ?? 0))}
+            onChange={(e) => setMinutes(e.target.value)}
+          />
+          {minutes.trim() !== '' && <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-muted">min</span>}
+        </div>
+        <span className="block text-xs text-muted">{cs.caffeine.preset.minutesHint}</span>
+      </label>
       {error ? (
         <p className="text-sm text-over" role="alert">
           {error}
         </p>
+      ) : !validMinutes ? (
+        <p className="text-sm text-over">{cs.caffeine.preset.invalidMinutes}</p>
       ) : (
         !valid && (name || mg) && <p className="text-sm text-muted">{cs.caffeine.preset.invalid}</p>
       )}

@@ -88,6 +88,9 @@ function IntakeForm({ substance, onClose, intake, defaultDate, presets, lastInta
         amount,
         presetName: preset ? preset.name : null,
         presetCount: preset ? count : null,
+        // The preset's drinking time is copied, like its name. Editing an entry made from the same preset keeps
+        // the time it was logged with; entries typed in mg use the default from settings (null).
+        drinkMinutes: !preset ? null : intake && intake.presetName === preset.name ? intake.drinkMinutes : preset.drinkMinutes,
       }
       if (intake) await backend.updateIntake(intake.id, input)
       else await backend.addIntake(input)
@@ -141,7 +144,10 @@ function IntakeForm({ substance, onClose, intake, defaultDate, presets, lastInta
               return (
                 <button key={p.id} type="button" role="radio" aria-checked={selected} onClick={() => setChoice({ kind: 'preset', id: p.id })} className={option(selected)}>
                   <span className="flex-1 font-semibold">{p.name}</span>
-                  <span className="text-sm text-muted tabular-nums">{formatMg(p.amountMg)}</span>
+                  <span className="text-sm text-muted tabular-nums">
+                    {formatMg(p.amountMg)}
+                    {p.drinkMinutes !== null && ` · ${cs.caffeine.drinkTime(p.drinkMinutes)}`}
+                  </span>
                 </button>
               )
             })}

@@ -421,6 +421,102 @@ def fig_smoking():
 fig_smoking()
 
 # ---------------------------------------------------------------------------------------------
+# 9. Drinking time (report section "Drinking time"): a drink of D mg sipped at an even pace over T h,
+#    starting at the logged time. Input rate D/T into the gut for T h, then the same model.
+#    With u = min(t, T):
+#      gut(t)     = D/T * (exp(-ka (t-u)) - exp(-ka t)) / ka
+#      body(t)    = D/T * ka/(ka-ke) * [exp(-ke (t-u)) (1 - exp(-ke u)) / ke - (exp(-ka (t-u)) - exp(-ka t)) / ka]
+#      undrunk(t) = D * (1 - u/T)
+#    T -> 0 gives the single-dose formulas.
+# ---------------------------------------------------------------------------------------------
+def body_sip(t, T, ka=KA, ke=KE):
+    t = np.asarray(t, float)
+    if T <= 0:
+        return body(t, ka, ke)
+    tc = np.clip(t, 0, None); u = np.minimum(tc, T)
+    absorbed = (np.exp(-ka * (tc - u)) - np.exp(-ka * tc)) / ka
+    remaining = np.exp(-ke * (tc - u)) * (-np.expm1(-ke * u)) / ke
+    return np.where(t >= 0, ka / (ka - ke) * (remaining - absorbed) / T, 0.0)
+
+def gut_sip(t, T, ka=KA):
+    t = np.asarray(t, float)
+    if T <= 0:
+        return gut(t, ka)
+    tc = np.clip(t, 0, None); u = np.minimum(tc, T)
+    return np.where(t >= 0, (np.exp(-ka * (tc - u)) - np.exp(-ka * tc)) / ka / T, 0.0)
+
+def undrunk_sip(t, T):
+    t = np.asarray(t, float)
+    return np.where(t >= 0, 1 - np.minimum(np.clip(t, 0, None), T) / T, 1.0)
+
+# Check the closed form against many small sips (midpoint rule, 4000 sips).
+_ts = np.linspace(0, 24, 2401)
+_sips = (np.arange(4000) + 0.5) / 4000
+SIP_MAX_ERR = 0.0
+for _T in (0.25, 1.0, 2.0):
+    _num = np.mean([body(_ts - s * _T) for s in _sips], axis=0)
+    SIP_MAX_ERR = max(SIP_MAX_ERR, float(150 * np.max(np.abs(_num - body_sip(_ts, _T)))))
+
+def sip_summary(T, D=150.0):
+    tt = np.arange(0, 24, 1 / 600)
+    b = D * body_sip(tt, T)
+    i = int(np.argmax(b))
+    return {"peak": float(b[i]), "tmax_min": float(tt[i] * 60), "h1": float(D * body_sip(1, T)),
+            "h6": float(D * body_sip(6, T)), "h9": float(D * body_sip(9, T)), "h12": float(D * body_sip(12, T))}
+SIP_ROWS = [(m, sip_summary(m / 60)) for m in (0, 15, 30, 60, 120)]
+SIP = dict(SIP_ROWS)
+
+# White 2016 sipped over 2 and 20 min; ka was set with tmax counted from the middle of drinking.
+# Model tmax counted from the start of drinking, for comparison with the observed values.
+SIP_WHITE = [(lab, m, obs, sip_summary(m / 60)["tmax_min"]) for lab, m, obs in
+             [("cold coffee / energy drink over 2 min", 2, "62 / 70"),
+              ("hot / cold coffee / energy drink over 20 min", 20, "59 / 64 / 82")]]
+
+# With smoking the app keeps ke at its value at the start of drinking within the drinking time.
+# Compare with a direct numerical solution for the smoking scenario of section 8, each 150 mg drink sipped over 1 h.
+def caffeine_with_M_sip(doses, t, M_of_t):
+    """Reference: gut/body ODE (explicit small steps) with input rate D/T during [t_i, t_i + T] and ke(t) = KE*M(t)."""
+    out = np.zeros_like(t); dt = t[1] - t[0]; g = 0.0; b = 0.0
+    for i, ti in enumerate(t):
+        out[i] = b
+        inp = sum(D / T * max(0.0, min(ti + dt, td + T) - max(ti, td)) for td, D, T in doses)
+        ke = KE * M_of_t(ti)
+        a = KA * g * dt
+        g += inp - a
+        b += a - ke * b * dt
+    return out
+
+def caffeine_app_sip(doses, t, lam_of_t, M_of_t):
+    out = np.zeros_like(t)
+    for td, D, T in doses:
+        h = t - td; ok = h >= 0
+        ke_i = KE * M_of_t(td)
+        u = np.minimum(h[ok], T)
+        absorbed = (np.exp(-KA * (h[ok] - u)) - np.exp(-KA * h[ok])) / KA
+        remaining = np.exp(-(lam_of_t(t[ok]) - lam_of_t(td + u))) * (-np.expm1(-ke_i * u)) / ke_i
+        out[ok] += D / T * KA / (KA - ke_i) * (remaining - absorbed)
+    return out
+
+sc_sip = [(td, D, 1.0) for td, D in sc_doses]
+_tt2 = np.arange(12 * 24, 17 * 24, 1 / 600)
+_ode2 = caffeine_with_M_sip(sc_sip, _tt2, M_of_t)
+_app2 = caffeine_app_sip(sc_sip, _tt2, lam_of_t, M_of_t)
+SIP_SMOKE_MAX_ERR = float(np.max(np.abs(_ode2 - _app2)))
+SIP_SMOKE_BODY = {lab: float(np.interp(h, _tt2, _app2)) for lab, h in
+                  [("day13_20h", 13 * 24 + 20), ("day15_20h", 15 * 24 + 20)]}
+
+def fig_drink_time():
+    fig, ax = plt.subplots(figsize=(5.6, 2.6))
+    tt = np.linspace(0, 14, 1401)
+    for (m, col, ls) in [(0, C_BODY, "-"), (30, C_ALT, "-"), (60, C_REF, "-"), (120, C_GREY, "--")]:
+        lab = "all at once" if m == 0 else f"sipped over {m} min"
+        ax.plot(tt, 150 * body_sip(tt, m / 60), color=col, ls=ls, lw=1.3, label=lab)
+    ax.set_xlabel("hours since the start of drinking"); ax.set_ylabel("caffeine in the body (mg)")
+    ax.set_xlim(0, 14); ax.set_ylim(0, 145); ax.legend(fontsize=7)
+    fig.tight_layout(); fig.savefig(os.path.join(FIG, "drink_time.pdf")); plt.close(fig)
+fig_drink_time()
+
+# ---------------------------------------------------------------------------------------------
 # Outputs
 # ---------------------------------------------------------------------------------------------
 N_ = {
@@ -445,6 +541,9 @@ N_ = {
     "smScM": f"{SC_M_SMOKING:.2f}", "smScMtwo": f"{SC_M_2D:.2f}", "smScMseven": f"{SC_M_7D:.2f}",
     "smMaxErr": f"{SC_MAX_ERR_MG:.2f}", "smBedSmoke": f"{SC_BODY['day13_23h']:.0f}", "smBedBase": f"{SC_BODY_BASE_23:.0f}",
     "smWindow": f"{SM_WINDOW_DAYS}", "smStartAvg": f"{SM_START_AVG_DAYS}",
+    "sipMaxErr": f"{SIP_MAX_ERR:.1e}", "sipSmokeMaxErr": f"{SIP_SMOKE_MAX_ERR:.2f}",
+    "sipBedZero": f"{SIP[0]['h9']:.0f}", "sipBedSixty": f"{SIP[60]['h9']:.0f}",
+    "sipBedPct": f"{100 * (SIP[60]['h9'] / SIP[0]['h9'] - 1):.0f}",
 }
 with open(os.path.join(HERE, "numbers.tex"), "w") as f:
     for k, v in N_.items():
@@ -468,6 +567,13 @@ with open(os.path.join(HERE, "tables.tex"), "w") as f:
     f.write("}\n\\newcommand{\\smoketable}{%\n")
     for lab, pmid, design, o, m, note in SMOKE_VALID:
         f.write(f"{lab} & {tex_escape(design)} & {o:.2f} & {m:.2f} & {m / o:.2f} & {note}\\\\\n")
+    f.write("}\n\\newcommand{\\siptable}{%\n")
+    for m, r in SIP_ROWS:
+        name = "all at once" if m == 0 else f"{m} min"
+        f.write(f"{name} & {r['peak']:.0f} & {r['tmax_min']:.0f} & {r['h1']:.0f} & {r['h6']:.1f} & {r['h9']:.1f} & {r['h12']:.1f}\\\\\n")
+    f.write("}\n\\newcommand{\\sipwhitetable}{%\n")
+    for lab, m, obs, mod in SIP_WHITE:
+        f.write(f"White 2016, {lab} & {obs} & {mod:.0f}\\\\\n")
     f.write("}\n\\newcommand{\\voltable}{%\n")
     for lab, v in VOLUMES:
         f.write(f"{tex_escape(lab)} & {v:.2f}\\\\\n")
@@ -488,6 +594,23 @@ json.dump({
     },
     "check_values": {"150mg_after_1h": round(150 * float(body(1)), 2), "150mg_after_6h": round(150 * float(body(6)), 2),
                      "150mg_after_12h": round(150 * float(body(12)), 2), "gut_150mg_after_0.5h": round(150 * float(gut(0.5)), 2)},
+    "drink_time": {
+        "model": "entry sipped at an even pace over T h from takenAt (the start of drinking); t_i = hours since the start; "
+                 "u = min(t_i, T); gut = D/T*(exp(-KA*(t_i-u)) - exp(-KA*t_i))/KA; "
+                 "body = D/T*KA/(KA-ke_i)*(exp(-Lambda(start+u, t))*(1-exp(-ke_i*u))/ke_i - (exp(-KA*(t_i-u)) - exp(-KA*t_i))/KA), "
+                 "ke_i = ke at the start, Lambda = integral of ke (KE*(t_i-u) without smoking); undrunk = D*(1-u/T); T = 0: single dose",
+        "check_values": {
+            "150mg_60min_after_0.5h": round(150 * float(body_sip(0.5, 1.0)), 2),
+            "150mg_60min_after_1h": round(150 * float(body_sip(1, 1.0)), 2),
+            "150mg_60min_after_6h": round(150 * float(body_sip(6, 1.0)), 2),
+            "150mg_60min_after_12h": round(150 * float(body_sip(12, 1.0)), 2),
+            "gut_150mg_60min_after_0.5h": round(150 * float(gut_sip(0.5, 1.0)), 2),
+            "undrunk_150mg_60min_after_0.5h": round(150 * float(undrunk_sip(0.5, 1.0)), 2),
+            "smoking_scenario_60min_body_day13_20h": round(SIP_SMOKE_BODY["day13_20h"], 2),
+            "smoking_scenario_60min_body_day15_20h": round(SIP_SMOKE_BODY["day15_20h"], 2),
+            "max_error_vs_ode_smoking_mg": round(SIP_SMOKE_MAX_ERR, 3),
+        },
+    },
     "smoking": {
         "model": "ke(t) = KE*M(t); r = cigarettes in the last 24 h; M* = 1 + EMAX*r/(EC50+r); dM/dt = KDEG*(M* - M); "
                  "r0 = average cigarettes/day over the first START_AVG_DAYS after the first logged cigarette (span at least 1 day); before that cigarette M = M*(r0), and the part of the 24-h window before it counts r0 per day; "
@@ -510,3 +633,8 @@ for row in SMOKE_VALID:
     print(f"  {row[0]:15s} {row[2]:50s} obs {row[3]:.2f} model {row[4]:.2f} ratio {row[4] / row[3]:.2f}")
 for (lab, d, o, p), (_, _, _, pp) in zip(VALID, VALID_POP):
     print(f"  {lab:55s} obs {o:6.2f} typical {p:6.2f} pop-mean {pp:6.2f} ratio {pp / o:.2f}")
+for m, r in SIP_ROWS:
+    print(f"  sip {m:3d} min: " + ", ".join(f"{k} {v:.1f}" for k, v in r.items()))
+for row in SIP_WHITE:
+    print("  White", row)
+print("  sip max err", SIP_MAX_ERR, "smoking sip max err", SIP_SMOKE_MAX_ERR)

@@ -22,8 +22,8 @@
 
 \title{\textbf{Estimating the caffeine still in the body\\from self-reported drinks}\\[4pt]
 \large Literature review, model options, calibration, validation and implementation specification\\for the \emph{bezKRATOMU} application}
-\author{Technical report (model version 2: smoking)}
-\date{8 November 2026; version 2: 12 November 2026}
+\author{Technical report (model version 3: smoking, drinking time)}
+\date{8 November 2026; version 2: 12 November 2026; version 3: 13 November 2026}
 
 \begin{document}
 \maketitle
@@ -512,6 +512,90 @@ data were found.
 the first days are overestimated.
 \end{itemize}
 
+\section{Drinking time (model version 3)}
+\label{sec:sip}
+\subsection{Question}
+Versions 1 and 2 treat every entry as drunk at once at the logged time. Users often sip an energy drink over
+30--60 minutes. With the fast absorption of Section~\ref{sec:params} (half-time about 9\,min), how long a drink
+takes to finish matters for the first hours. The user's decisions: the logged time is the \emph{start} of drinking;
+each drink (preset) can have its own drinking time in whole minutes, with a default in the settings (0 = all at once)
+for entries typed in mg, drinks without their own time and all older entries.
+
+\subsection{Model}
+A drink of $D$\,mg sipped at an even pace over $T$\,h enters the gut at the rate $D/T$ for $T$ hours; absorption and
+elimination are unchanged. With $t$ the time since the start and $u=\min(t,T)$ the time spent drinking so far,
+integrating the single-dose formulas over the part drunk gives
+\begin{align}
+\text{gut}(t) &= \frac{D}{T}\,\frac{e^{-\ka(t-u)}-e^{-\ka t}}{\ka}, \\
+\text{body}(t) &= \frac{D}{T}\,\frac{\ka}{\ka-\ke}\left[e^{-\ke(t-u)}\,\frac{1-e^{-\ke u}}{\ke}
+  - \frac{e^{-\ka(t-u)}-e^{-\ka t}}{\ka}\right], \\
+\text{not yet drunk}(t) &= D\,(1-u/T).
+\end{align}
+For $T\to 0$ these become the single-dose formulas. Against a numerical sum of 4000 small sips the largest
+difference is below 0.001\,mg (150\,mg; $T$ = 15, 60 and 120\,min). For users who log cigarettes, $e^{-\ke(t-u)}$ is
+replaced by $e^{-\int_{t_0+u}^{t}\ke M(s)\,ds}$ and $\ke$ elsewhere by $\ke M(t_0)$ at the start of drinking (as for
+absorption in Section~\ref{sec:params}); in the smoking scenario of the previous section with every drink sipped over
+1\,h, the largest difference from a direct numerical solution is \nSipSmokeMaxErr\,mg.
+
+\subsection{What it changes}
+Sipping hardly lowers the peak; it moves the curve later by about half the drinking time
+(Table~\ref{tab:sip}, Figure~\ref{fig:sip}). For 150\,mg drunk over an hour starting at 14:00, \nSipBedSixty\,mg is
+left at 23:00 instead of \nSipBedZero\,mg (+\nSipBedPct\,\%).
+
+\begin{table}[H]
+\centering\small
+\caption{150\,mg drunk at an even pace over different times; hours counted from the start of drinking.}\label{tab:sip}
+\begin{tabular}{lrrrrrr}
+\toprule
+Drinking time & Peak (mg) & Peak after (min) & 1\,h & 6\,h & 9\,h & 12\,h \\
+\midrule
+\siptable
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering\includegraphics[width=0.8\linewidth]{fig/drink_time.pdf}
+\caption{Caffeine in the body after 150\,mg drunk at once or sipped at an even pace.}
+\label{fig:sip}
+\end{figure}
+
+\subsection{Consistency with the absorption data}
+$\ka$ was set with the time to peak counted from the middle of drinking (Section~\ref{sec:params}), which is what the
+sipping model implies for short drinking times, so $\ka$ is unchanged. White 2016 is the only study found that varied
+the drinking time. Table~\ref{tab:sipwhite} compares its times to peak, counted from the start, with the model.
+Observed, finishing in 20 instead of 2 minutes delayed the peak by 2\,min (cold coffee) and 12\,min (energy drink); the
+model delays it by 10\,min. The absolute times are earlier in the model because $\ka$ is a median over all drinks and
+solutions; the displayed amount after the first hour is hardly affected.
+
+\begin{table}[H]
+\centering\small
+\caption{Time to peak from the start of drinking (min).}\label{tab:sipwhite}
+\begin{tabular}{p{0.6\linewidth}rr}
+\toprule Study, condition & Observed & Model \\ \midrule
+\sipwhitetable
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{In the application}
+\begin{itemize}
+\item Settings: \texttt{user\_settings.caffeine\_drink\_minutes} (default 0), \texttt{intake\_presets.drink\_minutes}
+(empty = the default) and \texttt{intakes.drink\_minutes}, a copy of the preset's value when the entry is saved (like
+its name), 0--300\,min (migration \texttt{0020}). Entries without a value use the current default, so changing the
+default also redraws the past curve.
+\item \texttt{cafAt} in \texttt{src/lib/caffeinePk.ts} takes \texttt{minutes} per entry and also returns the part not
+yet drunk; the projection (``if you have nothing more'') assumes a drink being sipped is finished.
+\texttt{caffeinePk.test.ts} pins \texttt{drink\_time.check\_values} in \texttt{ts\_constants.json}.
+\end{itemize}
+
+\subsection{Limitations of the drinking time}
+\begin{itemize}
+\item An even pace is assumed. Real sipping is uneven (often more at the start); the difference matters only within
+the drinking time and the hour after it.
+\item The drinking time is a typical value per drink, not measured for each entry.
+\end{itemize}
+
 \section{Deployment specification (for later)}
 \label{sec:deploy}
 \begin{itemize}
@@ -544,6 +628,7 @@ oral contraceptives, pregnancy, liver disease and some medicines.
 \item Linear kinetics; after very large doses or heavy daily intake, elimination may be slower than
 assumed, so the estimate may then be too low.
 \item Entries are user-reported; caffeine content of drinks varies widely (a ``cup'' is not a fixed amount).
+Drinking times are typical values set by the user (Section~\ref{sec:sip}).
 \item Early peak concentrations are under-predicted; the displayed amount is not affected.
 \item Tea, cola and chocolate count only if logged. Paraxanthine, which is also active, is not shown.
 \item The sleep reference is an average effect on total sleep time from studies of mostly young healthy

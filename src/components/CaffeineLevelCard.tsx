@@ -48,6 +48,7 @@ export function CaffeineLevelCard({
   now,
   weightKg,
   bedtime,
+  drinkMinutes,
   cigarettes,
 }: {
   intakes: Intake[]
@@ -55,6 +56,8 @@ export function CaffeineLevelCard({
   now: Date
   weightKg: number | null
   bedtime: string
+  /** Default drinking time (minutes) for entries without their own. */
+  drinkMinutes: number
   cigarettes?: Intake[] | null
 }) {
   // Recompute once a minute.
@@ -68,7 +71,9 @@ export function CaffeineLevelCard({
   const smokeFactor = clearance.factor(minute)
 
   const model = useMemo(() => {
-    const past = intakes.filter((i) => new Date(i.takenAt).getTime() <= minute)
+    const past = intakes
+      .filter((i) => new Date(i.takenAt).getTime() <= minute)
+      .map((i) => ({ takenAt: i.takenAt, amount: i.amount, minutes: i.drinkMinutes ?? drinkMinutes }))
     const current = cafAt(past, minute, clearance)
     const bed = nextClockTime(minute, bedtime)
     const futureEnd = Math.max(minute + MIN_FUTURE_H * HOUR, bed + HOUR)
@@ -84,7 +89,7 @@ export function CaffeineLevelCard({
     const below = cafTimeBelow(past, minute, refMg, 5, clearance)
     const hasAny = past.some((i) => minute - new Date(i.takenAt).getTime() < 72 * HOUR)
     return { current, data, markers, bed, atBed, below, hasAny }
-  }, [intakes, minute, bedtime, refMg, clearance])
+  }, [intakes, minute, bedtime, refMg, clearance, drinkMinutes])
 
   const roundedBelow = model.below === null ? null : Math.round(model.below / 600_000) * 600_000
 
@@ -104,8 +109,12 @@ export function CaffeineLevelCard({
             <div className="text-sm text-muted">
               {cs.caffeineLevel.unit} · {cs.caffeineLevel.cups(cups(cafCups(model.current.bodyMg)))}
             </div>
-            {model.current.gutMg >= 1 && (
-              <div className="mt-1 text-xs text-muted tabular-nums">{cs.caffeineLevel.absorbing(mg(model.current.gutMg))}</div>
+            {model.current.gutMg + model.current.undrunkMg >= 1 && (
+              <div className="mt-1 text-xs text-muted tabular-nums">
+                {model.current.undrunkMg >= 1
+                  ? cs.caffeineLevel.absorbingDrinking(mg(model.current.gutMg + model.current.undrunkMg))
+                  : cs.caffeineLevel.absorbing(mg(model.current.gutMg))}
+              </div>
             )}
           </div>
 

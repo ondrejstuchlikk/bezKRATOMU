@@ -3,6 +3,19 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-13
+
+- **"Kofein v těle" can now account for drinking slowly.** If you sip an energy drink over half an hour or an
+  hour, set how long you usually drink it: for each drink in *Nastavení → Moje nápoje* (*Jak dlouho ho piju*, in
+  minutes), plus a default in *Nastavení → Odhad kofeinu v těle* (*Jak dlouho obvykle piju jeden nápoj*; 0 = all
+  at once, which is how it worked until now). The time you log is the **start** of drinking. The estimate then lets
+  the caffeine come in gradually: the peak is about the same, but the curve moves later by about half the drinking
+  time (with an hour of sipping, about 7 % more is left at bedtime). While you're still drinking, the card shows
+  how much is still to come. The default also applies to entries typed in mg and to older entries, so changing it
+  also redraws the past curve. A drink's own time is saved with each new entry, so editing the drink later doesn't
+  change history. New section 9 in the caffeine report.
+  Migration: `0020_caffeine_drink_time.sql` (run it **before** this version goes live, or the caffeine pages show an error).
+
 ## 2026-11-12
 
 - **"Kofein v těle" now takes your cigarettes into account.** Smoking makes the liver break caffeine down faster

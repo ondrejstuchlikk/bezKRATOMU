@@ -354,6 +354,22 @@ update user_settings set bedtime = '20:00' where user_id = :'e';  -- RLS: affect
 reset role;
 select public.expect_eq((select bedtime from user_settings where user_id = :'e'), '23:00', 'cannot change others bedtime');
 
+-- ===== Caffeine drinking time (0020) =====
+select public.expect_eq((select caffeine_drink_minutes::text from user_settings where user_id = :'e'), '0', 'drink time default 0');
+set role authenticated;
+update user_settings set caffeine_drink_minutes = 45;
+select public.expect_eq((select caffeine_drink_minutes::text from user_settings), '45', 'default drink time saved');
+select public.expect_error($$update user_settings set caffeine_drink_minutes = 301$$, 'drink time too long');
+update intake_presets set drink_minutes = 60 where name = 'Velký energeťák';
+select public.expect_eq((select drink_minutes::text from intake_presets where name = 'Velký energeťák'), '60', 'preset drink time saved');
+insert into intake_presets (substance, name, amount_mg, drink_minutes) values ('caffeine', 'Pomalá káva', 90, 30);
+insert into intakes (substance, taken_at, amount, preset_name, preset_count, drink_minutes) values ('caffeine', now(), 150, 'Velký energeťák', 1, 60);
+select public.expect_eq((select drink_minutes::text from intakes where amount = 150), '60', 'intake drink time saved');
+update intakes set drink_minutes = null where amount = 150;
+select public.expect_error($$insert into intakes (substance, taken_at, amount, drink_minutes) values ('caffeine', now(), 50, -1)$$, 'negative drink time');
+select public.expect_error($$insert into intakes (substance, taken_at, amount, drink_minutes) values ('cigarette', now(), 1, 5)$$, 'drink time on a cigarette');
+reset role;
+
 -- ===== Anonymous =====
 set role anon;
 select is_nickname_available('Petr Novak') as petr_free, is_nickname_available('Někdo nový') as new_free;

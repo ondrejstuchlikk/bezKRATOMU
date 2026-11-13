@@ -88,6 +88,7 @@ export const cs = {
     /** "≈ 1 šálek kávy", "≈ 2 šálky", "≈ 5 šálků", "≈ 0,5 šálku" (decimals take the genitive singular). */
     cups: (n: number) => `≈ ${formatNumber(n)} ${Number.isInteger(n) ? plural(n, 'šálek', 'šálky', 'šálků') : 'šálku'} kávy`,
     absorbing: (mg: string) => `+ ${mg} mg se ještě vstřebává`,
+    absorbingDrinking: (mg: string) => `+ ${mg} mg ještě dopíjíš nebo se vstřebává`,
     none: 'Za poslední 3 dny nemáš zapsaný žádný kofein – podle modelu už v těle žádný není.',
     legendPast: 'posledních 24 h',
     legendFuture: 'když si už nic nedáš',
@@ -113,6 +114,7 @@ export const cs = {
       'Pak ho játra odbourávají: v průměru zmizí polovina asi za 5 hodin. Za 10 hodin zbývá čtvrtina, za 15 hodin osmina.',
       'Velké číslo = kofein, který se už vstřebal a tělo ho ještě neodbouralo. Šálek kávy tu znamená 100 mg (skutečné šálky mají 50–300 mg).',
       'Referenční hladina pro spánek vychází z velkého souhrnu 24 studií (2023): v průměru tolik kofeinu při usínání ještě nezkracuje spánek. Počítá se z tvé váhy (0,52 mg na kg).',
+      'Čas záznamu se bere jako začátek pití. Když piješ pomalu (třeba energeťák hodinu), nastav si dobu pití u nápoje nebo výchozí dobu v Nastavení: kofein pak přibývá postupně. Křivka se tím posune zhruba o polovinu doby pití později, vrchol zůstane skoro stejný.',
       'Váhu a čas, kdy chodíš spát, si nastavíš v Nastavení (s vybraným kofeinem).',
       'Pokud si zapisuješ cigarety, počítá se s nimi: látky z cigaretového kouře zrychlují odbourávání kofeinu v játrech. Při 10 cigaretách denně se kofein odbourává asi o polovinu rychleji, při 20 asi o 70 % rychleji. Když přestaneš kouřit, vrací se to k normálu zhruba za týden. Počítají se jen tvoje vlastní zápisy z posledních 4 týdnů.',
       'Sibiř (snus) se nepočítá: zrychlení dělá kouř, ne nikotin, a u lidí, kteří užívají jen bezdýmný tabák, ho studie nenašly.',
@@ -218,6 +220,8 @@ export const cs = {
       delete: 'Smazat záznam',
       confirmDelete: 'Opravdu smazat tento záznam?',
     },
+    /** Drinking time of a drink: "naráz" or "45 min". */
+    drinkTime: (minutes: number) => (minutes === 0 ? 'naráz' : `${minutes} min`),
     preset: {
       name: 'Název',
       namePlaceholder: 'např. Káva z automatu',
@@ -227,6 +231,10 @@ export const cs = {
       delete: 'Smazat',
       confirmDelete: (name: string) => `Smazat nápoj „${name}“? Už zapsané záznamy zůstanou.`,
       invalid: 'Zadej název a množství od 0,1 do 1000 mg.',
+      minutes: 'Jak dlouho ho piju',
+      minutesPlaceholder: (def: string) => `výchozí (${def})`,
+      minutesHint: 'Prázdné = výchozí doba z Nastavení. Změna platí pro nové záznamy.',
+      invalidMinutes: 'Doba pití: celé minuty od 0 do 300, nebo nech prázdné.',
     },
     chart: {
       daily: 'Kofein po dnech',
@@ -578,6 +586,9 @@ export const cs = {
     weightHint: 'Nepovinné. Bez ní se počítá se 70 kg. Mění jen referenční hladinu pro spánek.',
     bedtime: 'Kdy chodím spát',
     bedtimeHint: 'Podle toho karta ukáže, kolik kofeinu budeš mít v těle při usínání.',
+    drinkTime: 'Jak dlouho obvykle piju jeden nápoj',
+    drinkTimeHint:
+      'V minutách, 0 = naráz. Čas záznamu je začátek pití. Platí pro nápoje bez vlastní doby, pro záznamy zadané v mg a pro starší záznamy.',
     caffeinePresets: 'Moje nápoje',
     caffeinePresetsHint: 'Kolik kofeinu má nápoj, který piješ. Pak ho zapíšeš jedním klepnutím, jako lžičku u kratomu. Úprava nezmění už zapsané záznamy.',
     addPreset: '+ Přidat nápoj',

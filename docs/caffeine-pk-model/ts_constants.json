@@ -21,6 +21,20 @@
     "150mg_after_12h": 31.24,
     "gut_150mg_after_0.5h": 16.45
   },
+  "drink_time": {
+    "model": "entry sipped at an even pace over T h from takenAt (the start of drinking); t_i = hours since the start; u = min(t_i, T); gut = D/T*(exp(-KA*(t_i-u)) - exp(-KA*t_i))/KA; body = D/T*KA/(KA-ke_i)*(exp(-Lambda(start+u, t))*(1-exp(-ke_i*u))/ke_i - (exp(-KA*(t_i-u)) - exp(-KA*t_i))/KA), ke_i = ke at the start, Lambda = integral of ke (KE*(t_i-u) without smoking); undrunk = D*(1-u/T); T = 0: single dose",
+    "check_values": {
+      "150mg_60min_after_0.5h": 43.66,
+      "150mg_60min_after_1h": 110.23,
+      "150mg_60min_after_6h": 74.36,
+      "150mg_60min_after_12h": 33.42,
+      "gut_150mg_60min_after_0.5h": 30.21,
+      "undrunk_150mg_60min_after_0.5h": 75.0,
+      "smoking_scenario_60min_body_day13_20h": 57.54,
+      "smoking_scenario_60min_body_day15_20h": 70.62,
+      "max_error_vs_ode_smoking_mg": 0.097
+    }
+  },
   "smoking": {
     "model": "ke(t) = KE*M(t); r = cigarettes in the last 24 h; M* = 1 + EMAX*r/(EC50+r); dM/dt = KDEG*(M* - M); r0 = average cigarettes/day over the first START_AVG_DAYS after the first logged cigarette (span at least 1 day); before that cigarette M = M*(r0), and the part of the 24-h window before it counts r0 per day; after now M stays at M(now); snus is not counted",
     "EMAX": 1.0514,

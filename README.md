@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0019`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0020`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -123,6 +123,10 @@ sends. Lock-screen texts never contain grams.
   For users who track cigarettes, their own cigarettes of the last 28 days speed up the elimination (CYP1A2
   induction: dose-response by cigarettes in the last 24 h, follows changes with a 38.6 h half-life; report section 8,
   `cafSmokingClearance`). Snus doesn't count. Browser only, no database change.
+  Drinking time (`0020_caffeine_drink_time.sql`, report section 9): the logged time is the start of drinking, and a
+  drink can be sipped at an even pace over N minutes. Each drink (preset) can have its own time; the default in
+  Nastavení (0 = all at once) covers entries typed in mg, drinks without their own time and older entries. An entry
+  keeps a copy of its drink's time (`intakes.drink_minutes`, null = the current default).
 - **Nicotine** (`0018_nicotine.sql`): cigarettes and snus (*sibiř*), each switched on separately; nicotine
   shows in the switcher when at least one is on. One entry = one piece (`public.intakes` with substance
   `cigarette` / `snus`, amount 1): *+1 cigareta* / *+1 sibiř* logs it at the current time (with *Zpět* to undo),

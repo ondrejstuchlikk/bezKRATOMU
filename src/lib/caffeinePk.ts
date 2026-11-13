@@ -7,6 +7,8 @@
 // model there first, then copy them and rerun caffeinePk.test.ts.
 // Version 2 (2026-11-12): for users who log cigarettes, the elimination rate follows their own smoking
 // (CYP1A2 induction; report section "Smoking"). Without cigarettes everything is exactly as in version 1.
+// Drinking time (2026-11-13, report section "Drinking time"): an entry can be sipped at an even pace over
+// `minutes` from its logged time (the start of drinking). 0 or missing = all at once, exactly as before.
 
 /** Absorption rate (1/h): median time to peak 49 min after drinks. */
 export const CAF_KA = 4.4209
@@ -122,10 +124,12 @@ export function cafSmokingClearance(cigarettes: readonly number[], now: number):
 }
 
 export interface CafEntry {
-  /** ISO instant. */
+  /** ISO instant: when drinking started. */
   takenAt: string
   /** mg of caffeine. */
   amount: number
+  /** Drunk at an even pace over this many minutes from takenAt; 0 or missing = all at once. */
+  minutes?: number
 }
 
 export interface CafPoint {
@@ -133,8 +137,10 @@ export interface CafPoint {
   t: number
   /** Absorbed and not yet eliminated (mg). */
   bodyMg: number
-  /** Still being absorbed (mg). */
+  /** Drunk but still being absorbed (mg). */
   gutMg: number
+  /** Not drunk yet: the rest of a drink that is still being sipped (mg). */
+  undrunkMg: number
 }
 
 /**
@@ -144,16 +150,30 @@ export interface CafPoint {
 export function cafAt(entries: readonly CafEntry[], t: number, clearance: CafClearance = CAF_BASE_CLEARANCE): CafPoint {
   let bodyMg = 0
   let gutMg = 0
+  let undrunkMg = 0
   for (const e of entries) {
     const at = new Date(e.takenAt).getTime()
     const h = (t - at) / HOUR_MS
     if (h < 0 || h > CAF_MEMORY_H || !(e.amount > 0)) continue
     // Absorption takes about an hour, so it uses the rate at the time of the entry; elimination uses ∫ ke.
     const ke = CAF_KE * clearance.factor(at)
-    bodyMg += ((e.amount * CAF_KA) / (CAF_KA - ke)) * (Math.exp(-clearance.elim(at, t)) - Math.exp(-CAF_KA * h))
-    gutMg += e.amount * Math.exp(-CAF_KA * h)
+    const T = (e.minutes ?? 0) / 60
+    if (!(T > 0)) {
+      bodyMg += ((e.amount * CAF_KA) / (CAF_KA - ke)) * (Math.exp(-clearance.elim(at, t)) - Math.exp(-CAF_KA * h))
+      gutMg += e.amount * Math.exp(-CAF_KA * h)
+      continue
+    }
+    // Sipped at rate D/T for T hours: the single-dose formula integrated over the part drunk so far (u hours).
+    // Elimination after the end of that part uses ∫ ke; within it, ke at the entry (exact without smoking).
+    const u = Math.min(h, T)
+    const rate = e.amount / T
+    const absorbed = (Math.exp(-CAF_KA * (h - u)) - Math.exp(-CAF_KA * h)) / CAF_KA
+    const remaining = Math.exp(-clearance.elim(at + u * HOUR_MS, t)) * (-Math.expm1(-ke * u) / ke)
+    bodyMg += ((rate * CAF_KA) / (CAF_KA - ke)) * (remaining - absorbed)
+    gutMg += rate * absorbed
+    undrunkMg += e.amount * (1 - u / T)
   }
-  return { t, bodyMg: Math.max(0, bodyMg), gutMg: Math.max(0, gutMg) }
+  return { t, bodyMg: Math.max(0, bodyMg), gutMg: Math.max(0, gutMg), undrunkMg }
 }
 
 /** Points every `stepMin` minutes from `from` to `to` (epoch ms, inclusive). */
@@ -181,7 +201,8 @@ export function cafCups(mg: number): number {
 
 /**
  * "If you have nothing more": the first moment after `from` at which the amount in the body, past its coming
- * peak, is below `thresholdMg`. Only entries up to `from` count. `from` itself when it is already below and
+ * peak, is below `thresholdMg`. Only entries started up to `from` count (a drink still being sipped is
+ * assumed to be finished). `from` itself when it is already below and
  * falling; null when nothing was taken or it doesn't happen within CAF_MEMORY_H. On a `stepMin` grid.
  */
 export function cafTimeBelow(
@@ -195,8 +216,8 @@ export function cafTimeBelow(
   if (!past.length) return null
   const step = stepMin * 60_000
   let prev = cafAt(past, from, clearance)
-  // Still absorbing: the amount rises first, even if it is below the threshold now.
-  if (prev.gutMg < 0.5 && prev.bodyMg < thresholdMg) return from
+  // Still drinking or absorbing: the amount rises first, even if it is below the threshold now.
+  if (prev.gutMg + prev.undrunkMg < 0.5 && prev.bodyMg < thresholdMg) return from
   for (let t = from + step; t <= from + CAF_MEMORY_H * HOUR_MS; t += step) {
     const p = cafAt(past, t, clearance)
     if (p.bodyMg < prev.bodyMg && p.bodyMg < thresholdMg) return t

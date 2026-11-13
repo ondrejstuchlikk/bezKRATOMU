@@ -109,7 +109,8 @@ one Edge Function). Tests: Vitest + plain-SQL checks. Lint: oxlint.
 - After adding a migration: add it to the list in README step 2, add a CHANGELOG entry, and tell the user to
   run it. Order matters: if the frontend calls a new RPC, the user must run the SQL **before** the push
   goes live (or the page errors until they do).
-- Live DB has 0001–0019 applied (as of 2026-11-08). In the SQL Editor, 0017 shows one `NULL` row per account
+- Live DB has 0001–0020 applied (as of 2026-11-13; 0020 was run through the Supabase MCP `execute_sql` tool at the
+  user's request, not `apply_migration`, which would start a migration history this project doesn't use). In the SQL Editor, 0017 shows one `NULL` row per account
   (the seeding `select`); that is success, not an error.
 - Supabase grants everything on new `public` tables to `anon`/`authenticated` by default: every new table
   needs `revoke all … from anon, authenticated` and explicit column grants (see 0002, 0017).
@@ -217,6 +218,11 @@ Marek, Bára — all PIN `123456`.
   24 h, Tantcheva-Poór 1999) with a 38.6 h half-life (Faber 2004); only when `trackCigarettes`; snus not counted;
   projection keeps M at its current value. Constants under `smoking` in `ts_constants.json`; report section 8.
   Contraceptives/pregnancy still deliberately not used.
+- Caffeine model version 3 (2026-11-13, user's decisions): drinking time. Logged time = **start** of drinking; even
+  pace over `minutes` (closed form in `cafAt`, report section 9, `drink_time` in `ts_constants.json`). Per preset
+  (`intake_presets.drink_minutes`, null = default), copied onto the entry like `preset_name`; default
+  `user_settings.caffeine_drink_minutes` (0 = all at once, any whole minutes 0–300) applies to entries with null,
+  including old ones (changing it redraws the past). No per-entry field in the sheet (option C was not chosen).
 - Types: `Substance` = what the switcher shows (`kratom | caffeine | nicotine`); `IntakeSubstance` = the value in
   `public.intakes.substance` (`caffeine | cigarette | snus`). `listMyIntakes` takes a list of kinds.
 

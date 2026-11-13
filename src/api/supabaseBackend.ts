@@ -138,6 +138,7 @@ function mapIntake(r: Row): Intake {
     amount: Number(r.amount),
     presetName: (r.preset_name as string | null) ?? null,
     presetCount: num(r.preset_count),
+    drinkMinutes: num(r.drink_minutes),
   }
 }
 
@@ -148,6 +149,7 @@ function mapPreset(r: Row): IntakePreset {
     name: r.name as string,
     amountMg: Number(r.amount_mg),
     sortOrder: Number(r.sort_order),
+    drinkMinutes: num(r.drink_minutes),
   }
 }
 
@@ -157,6 +159,7 @@ function intakeRow(input: IntakeInput) {
     amount: input.amount,
     preset_name: input.presetName,
     preset_count: input.presetCount,
+    ...(input.drinkMinutes !== undefined && { drink_minutes: input.drinkMinutes }),
   }
 }
 
@@ -220,7 +223,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
           .select(
             'teaspoon_grams, price_per_gram, reminder_hour, notify_social, notify_level, track_caffeine, substances_intro_seen, ' +
               'track_cigarettes, track_snus, cigarette_pack_price, cigarette_pack_size, snus_pack_price, snus_pack_size, ' +
-              'body_weight_kg, bedtime',
+              'body_weight_kg, bedtime, caffeine_drink_minutes',
           )
           .eq('user_id', id)
           .single(),
@@ -243,6 +246,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
         snusPackSize: Number(settings.snus_pack_size ?? 20),
         bodyWeightKg: num(settings.body_weight_kg),
         bedtime: (settings.bedtime as string | null) ?? '23:00',
+        caffeineDrinkMinutes: Number(settings.caffeine_drink_minutes ?? 0),
       }
     },
 
@@ -267,6 +271,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       if (patch.snusPackSize !== undefined) settings.snus_pack_size = patch.snusPackSize
       if (patch.bodyWeightKg !== undefined) settings.body_weight_kg = patch.bodyWeightKg
       if (patch.bedtime !== undefined) settings.bedtime = patch.bedtime
+      if (patch.caffeineDrinkMinutes !== undefined) settings.caffeine_drink_minutes = patch.caffeineDrinkMinutes
       if (Object.keys(settings).length) {
         settings.updated_at = new Date().toISOString()
         check(await sb.from('user_settings').update(settings).eq('user_id', id))
@@ -435,7 +440,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       const row = check(
         await sb
           .from('intake_presets')
-          .insert({ substance, name: input.name, amount_mg: input.amountMg, sort_order: (Number(last[0]?.sort_order) || 0) + 1 })
+          .insert({ substance, name: input.name, amount_mg: input.amountMg, drink_minutes: input.drinkMinutes, sort_order: (Number(last[0]?.sort_order) || 0) + 1 })
           .select('*')
           .single(),
       ) as Row
@@ -443,7 +448,7 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
     },
 
     async updatePreset(id, input) {
-      check(await sb.from('intake_presets').update({ name: input.name, amount_mg: input.amountMg }).eq('id', id))
+      check(await sb.from('intake_presets').update({ name: input.name, amount_mg: input.amountMg, drink_minutes: input.drinkMinutes }).eq('id', id))
     },
 
     async deletePreset(id) {
