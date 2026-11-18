@@ -442,8 +442,11 @@ export const cs = {
     today: 'dnes',
     tomorrow: 'zítra',
     tooltipLevel: 'Hladina',
-    pctHint: '100 % = průměrná hladina na začátku tvého plánu.',
-    noPlanHint: 'Procenta uvidíš, až si nastavíš plán (100 % = průměr na začátku plánu).',
+    /** Dotted line: average level over the last 3 days; with % it shows the value. */
+    legendAvg: (pct: number | null) => (pct === null ? 'průměr za 3 dny' : `průměr za 3 dny: ${pct} %`),
+    pctHint: '100 % = tvoje průměrná hladina v prvním týdnu záznamů. Nový plán na tom nic nemění.',
+    pctHintPlan: '100 % = průměr na začátku tvého prvního plánu. Po 3 dnech záznamů se přepne na tvůj první týden.',
+    noPctHint: 'Procenta uvidíš po 3 dnech záznamů (100 % = průměr tvého prvního týdne).',
     disclaimer:
       'Hrubý odhad podle klinických studií pro průměrného dospělého (70 kg) a prášek s 1,6 % mitragyninu. Není to měření – lidé se mezi sebou liší i několikanásobně.',
     howTitle: 'Jak se to počítá?',

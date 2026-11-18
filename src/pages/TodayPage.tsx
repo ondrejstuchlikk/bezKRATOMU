@@ -110,7 +110,7 @@ export function TodayPage() {
         />
       </Card>
 
-      <LevelCard today={today} now={now} baselineG={plan.data?.baselineG ?? null} />
+      <LevelCard today={today} now={now} />
 
       {yesterdayRow && (
         <YesterdayCard

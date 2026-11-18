@@ -5,6 +5,15 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-18
 
+- **"V těle teď": 100 % now means the start of your journey, not of your current plan.** Until now 100 % was the
+  usual level at the start of your active plan, so it jumped whenever you started a new plan. Now it is your usual
+  level in the **first week of your records** (average grams per day over the days you logged in your first 7 days),
+  and it stays the same whatever plans you start later. Until you have 3 days logged, the first plan is used. The
+  milestone notifications ("below 75/50/25/10 % of your starting level") use the same 100 % and each step is
+  announced once ever, not once per plan. **Migration:** `0021_level_journey_baseline.sql`.
+- **New dotted line in the "V těle teď" chart: your average level over the last 3 days**, with its value in the
+  legend (e.g. "průměr za 3 dny: 60 %"), so you can see whether today is above or below your recent average.
+
 - **Dnes is more compact.** The big "Ahoj, …" greeting at the top of the Dnes page is gone (for kratom, caffeine
   and nicotine), so the limit card and the rest of the day move up. The date line stays.
 

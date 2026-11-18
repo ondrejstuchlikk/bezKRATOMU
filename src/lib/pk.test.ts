@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import constants from '../../docs/pk-model/ts_constants.json'
 import {
   kratomEffectGrams,
+  journeyBaselineG,
   levelPct,
   pkAt,
   pkAverageGramsPerDay,
+  pkMeanLevel,
   pkRangeVariants,
   pkSeries,
   pkTimesBelow,
@@ -245,5 +247,43 @@ describe('uncertainty range (model version 2)', () => {
     expect(pkRangeVariants(12).slow).toBe(PK_VARIANTS.slow)
     expect(pkRangeVariants(12.1).slow).toBe(PK_VARIANTS.slowHeavy)
     expect(pkRangeVariants(30).fast).toBe(PK_VARIANTS.fast)
+  })
+})
+
+describe('journeyBaselineG (100 % = start of the records)', () => {
+  const dose = (localDate: string, grams: number) => ({ localDate, grams })
+  const doses = [
+    dose('2026-10-01', 4),
+    dose('2026-10-01', 4),
+    dose('2026-10-02', 6),
+    // 10-03 not logged: skipped, not counted as 0
+    dose('2026-10-04', 10),
+    dose('2026-10-07', 8),
+    dose('2026-10-08', 100), // day 8: outside the first week
+  ]
+
+  it('averages the days with doses in the first 7 days', () => {
+    expect(journeyBaselineG(doses, '2026-10-01', '2026-11-18')).toBe((8 + 6 + 10 + 8) / 4)
+  })
+
+  it('leaves out today, as it is not over', () => {
+    expect(journeyBaselineG(doses, '2026-10-01', '2026-10-07')).toBe((8 + 6 + 10) / 3)
+  })
+
+  it('needs 3 days with doses', () => {
+    expect(journeyBaselineG(doses, '2026-10-01', '2026-10-04')).toBeNull()
+    expect(journeyBaselineG([], '2026-10-01', '2026-11-18')).toBeNull()
+  })
+})
+
+describe('pkMeanLevel', () => {
+  it('equals the steady-state daily mean on a long steady routine', () => {
+    const doses = Array.from({ length: 30 }, (_, i) => ({
+      takenAt: new Date(Date.UTC(2026, 9, 1 + i, 8)).toISOString(),
+      grams: 5,
+    }))
+    const end = Date.UTC(2026, 9, 30, 8)
+    const mean = pkMeanLevel(doses, end - 72 * 3_600_000, end, 2)
+    expect(mean / (5 * PK_REF_NM_PER_G_DAY)).toBeCloseTo(1, 1)
   })
 })

@@ -37,7 +37,7 @@ Other commands: `npm test` (unit tests), `npm run build`, `npm run lint`.
 1. **Create the project** at [supabase.com](https://supabase.com): *New project*, name `bezKRATOMU`,
    region *Central EU (Frankfurt)*, generate and save a database password.
 2. **Run the migrations**: *SQL Editor → New query*, paste the content of each file in
-   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0020`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
+   `supabase/migrations/` **in order** (`0001` … `0009`, then `0011` … `0021`; `0010` comes with the notification setup below) and click *Run*. Each should end with "Success".
    If `0005_cron.sql` fails because of pg_cron, enable it in *Database → Extensions → pg_cron*
    (or *Integrations → Cron*) and run the file again.
 3. **Auth settings** (*Authentication*):
@@ -140,15 +140,19 @@ sends. Lock-screen texts never contain grams.
   The big number is *kratom by effect* (`kratomEffectGrams`): the combined, potency-weighted level expressed
   in grams of powder, scaled so that a 1 g dose shows 1 g at its peak (~1.7 h). It is not powder in the body;
   it moves exactly with the level. A small line shows the mg of mitragynine and 7-OH not yet eliminated. *Hladina* is
-  the same combined level in %, where 100 % = the average level at the plan's baseline. The chart shows the last 12, 24 (default) or 48 hours, or 3/5/7 days (*Více* menu), plus a 12-hour projection; the choice
+  the same combined level in %, where 100 % = the average level at the start of your records: the average grams per
+  day over the days with doses among the first 7 days from your first dose (today excluded, at least 3 such days;
+  until then the first plan's baseline; a new plan doesn't change it, `journeyBaselineG` / `useLevelReference`).
+  A dotted line shows the average level over the last 3 days. The chart shows the last 12, 24 (default) or 48 hours, or 3/5/7 days (*Více* menu), plus a 12-hour projection; the choice
   is kept in `localStorage`. Below it: when the level would fall under the next steps (75/50/25/10 % of
-  baseline; without a plan or below 10 %: to half and a tenth of now) if no more is taken, each with a range
+  that 100 %; without one or below 10 %: to half and a tenth of now) if no more is taken, each with a range
 from a faster and a slower variant of the model (terminal half-life 20 h and 60 h; 84 h when the last 14 days
 averaged more than 12 g/day), also drawn as a light band around the projection. The card runs only
   in the browser and only on your own doses. The opt-in notifications (`0016_level_notifications.sql`) compute
   the same combined line in SQL (`private.pk_level`), only for the owner's own pushes: a morning recap (8–10 h:
   yesterday's highest level vs. the day before) and at most one milestone a day (9–22 h): the lowest level in
-  3/7/14/30 days, or below 75/50/25/10 % of baseline for the first time in the plan. The night is checked in one
+  3/7/14/30 days, or below 75/50/25/10 % of the same 100 % for the first time ever (`0021_level_journey_baseline.sql`,
+  `private.journey_baseline_g`). The night is checked in one
   go at the first check after 9:00, so nobody is woken up. The literature review, maths,
   validation and limits are in `docs/pk-model/kratom-pk-model.pdf` (section 9: the review of studies on regular
   and heavy users behind the range); `docs/pk-model/model.py` regenerates the report's numbers and the constants

@@ -26,6 +26,8 @@ const OH_MG_PER_G = [0.19781456343650616, 1.4827018282530364, -0.294343369948653
 /** Doses older than this contribute < 0.02 % of their peak and are ignored. */
 export const PK_MEMORY_DAYS = 14
 
+import { addDays, type ISODate } from './time'
+
 const HOUR_MS = 3_600_000
 
 export interface PkDose {
@@ -162,7 +164,49 @@ export function pkSeries(doses: readonly PkDose[], from: number, to: number, ste
   return out
 }
 
-/** Level as % of the steady-state daily mean at the plan baseline (g/day); null without a baseline. */
+// --- What 100 % means -------------------------------------------------------------------------------------------
+// 100 % = the steady-state daily mean at the user's grams per day at the start of their records (first JOURNEY_DAYS
+// days from the first dose), so it stays put when they start a new plan. The simulated curve itself is not averaged:
+// the app knows nothing about doses before the first record, so the curve starts at zero and climbs for days.
+// SQL mirror: private.journey_baseline_g (0021).
+
+/** Length of "the start" (days from the first logged dose). */
+export const JOURNEY_DAYS = 7
+/** Days with doses needed in that window (before today) before the start counts; until then the first plan's baseline. */
+export const JOURNEY_MIN_DAYS = 3
+
+/**
+ * Average grams per day over the days with doses among the first JOURNEY_DAYS days of the records (today excluded,
+ * as it is not over). null with fewer than JOURNEY_MIN_DAYS such days.
+ */
+export function journeyBaselineG(
+  doses: readonly { localDate: ISODate; grams: number }[],
+  firstDate: ISODate,
+  today: ISODate,
+): number | null {
+  const last = addDays(firstDate, JOURNEY_DAYS - 1)
+  const byDay = new Map<string, number>()
+  for (const d of doses) {
+    if (d.localDate < firstDate || d.localDate > last || d.localDate >= today || !(d.grams > 0)) continue
+    byDay.set(d.localDate, (byDay.get(d.localDate) ?? 0) + d.grams)
+  }
+  if (byDay.size < JOURNEY_MIN_DAYS) return null
+  let sum = 0
+  for (const g of byDay.values()) sum += g
+  return sum / byDay.size
+}
+
+/** Hours the "recent average" line covers. */
+export const PK_RECENT_AVG_H = 72
+
+/** Mean of the central level (nM) over [from, to] (epoch ms), sampled every `stepMin` minutes. */
+export function pkMeanLevel(doses: readonly PkDose[], from: number, to: number, stepMin = 10): number {
+  const points = pkSeries(doses, from, to, stepMin)
+  if (!points.length) return 0
+  return points.reduce((s, p) => s + p.levelNM, 0) / points.length
+}
+
+/** Level as % of the steady-state daily mean at the reference (g/day, see journeyBaselineG); null without one. */
 export function levelPct(levelNM: number, baselineG: number | null | undefined): number | null {
   if (!baselineG || baselineG <= 0) return null
   return (100 * levelNM) / (PK_REF_NM_PER_G_DAY * baselineG)

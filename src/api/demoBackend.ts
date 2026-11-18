@@ -805,6 +805,16 @@ export function createDemoBackend(): Backend {
         .map(toDose)
     },
 
+    async getMyJourneyStart() {
+      await delay(60)
+      const user = me()
+      const first = dosesOf(user, planDaysOf(user.id)).doses.reduce<ISODate | null>(
+        (min, d) => (min === null || d.localDate < min ? d.localDate : min),
+        null,
+      )
+      return { firstDoseDate: first, firstPlanBaselineG: plansOf(user.id)[0]?.baselineG ?? null }
+    },
+
     async addDose(input) {
       await delay()
       const user = me()

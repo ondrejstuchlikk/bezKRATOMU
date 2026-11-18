@@ -77,6 +77,13 @@ export interface Dose {
   note: string | null
 }
 
+export interface JourneyStart {
+  /** Prague date of the earliest dose ever logged, null without any dose. */
+  firstDoseDate: ISODate | null
+  /** Baseline (g/day) of the first plan ever created, null without a plan. */
+  firstPlanBaselineG: number | null
+}
+
 export interface DoseInput {
   takenAt: Date
   grams: number
@@ -275,6 +282,8 @@ export interface Backend {
   resumePlan(): Promise<void>
 
   listMyDoses(from: ISODate, to: ISODate): Promise<Dose[]>
+  /** Where the user's records start: the date of their first dose and their first plan's baseline (own data only). */
+  getMyJourneyStart(): Promise<JourneyStart>
   addDose(input: DoseInput): Promise<void>
   updateDose(id: string, input: DoseInput): Promise<void>
   deleteDose(id: string): Promise<void>

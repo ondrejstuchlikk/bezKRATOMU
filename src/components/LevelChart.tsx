@@ -19,6 +19,7 @@ export interface LevelChartPoint {
 /** Chart part of LevelCard, in its own file so Recharts loads lazily. */
 export default function LevelChart({
   data,
+  avg,
   markers,
   now,
   pastH,
@@ -26,6 +27,8 @@ export default function LevelChart({
   height,
 }: {
   data: LevelChartPoint[]
+  /** Average level over the last 3 days (same scale as the lines). */
+  avg: number
   markers: number[]
   now: number
   /** Hours of history shown (12, 24, 48 or 3/5/7 days); the projection is always 12 h. */
@@ -67,6 +70,9 @@ export default function LevelChart({
           axisLine={false}
         />
         {showPct && <ReferenceLine y={100} stroke={c.line} strokeDasharray="3 4" />}
+        {avg > 0 && (
+          <ReferenceLine y={avg} stroke={c.ink} strokeOpacity={0.6} strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" ifOverflow="extendDomain" />
+        )}
         <ReferenceLine x={now} stroke={c.muted} strokeWidth={1} />
         <Tooltip
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}

@@ -262,7 +262,11 @@ create function public.level_claim(p_local text) returns text language sql as $$
   select coalesce(string_agg(tag || ': ' || body, ' | ' order by tag), '-')
   from private.claim_level_notifications(p_local::timestamp at time zone 'Europe/Prague')
 $$;
--- Expected values cross-checked with an independent Python version of the same rules.
+-- 100 % = start of the records (0021): 6 g/day in the first week, not the plan's 8 g.
+select public.expect_eq(private.journey_baseline_g(:'e', date '2026-10-21')::text, '6.0000000000000000', 'journey baseline = first 7 days');
+-- Today does not count and 3 days with doses are needed (10-01 and 10-02 only: no journey baseline yet).
+select public.expect_eq(coalesce(private.journey_baseline_g(:'e', date '2026-10-03')::text, 'null'), 'null', 'journey baseline needs 3 days');
+-- Expected values cross-checked with an independent Python version of the same rules (updated for 0021).
 select public.expect_eq(public.level_claim('2026-10-20 07:55'), '-', 'level: nothing before 8:00');
 select public.expect_eq(public.level_claim('2026-10-20 08:30'),
   'level-recap: Včera byl nejvyšší odhad v těle o 24 % nižší než předevčírem 📉', 'level: morning recap');
@@ -275,14 +279,14 @@ select public.expect_eq(public.level_claim('2026-10-20 21:00'),
 select public.expect_eq(public.level_claim('2026-10-20 21:30'), '-', 'level: one milestone a day');
 select public.expect_eq(public.level_claim('2026-10-21 08:30'),
   'level-recap: Včera byl nejvyšší odhad v těle o 26 % vyšší než předevčírem.', 'level: recap when higher');
--- The first check of the day covers the night since the last check.
+-- The first check of the day covers the night since the last check (low ≈ 29 %): 50 % is already announced,
+-- so a new low instead. 30 days back there were no doses yet (level 0), so it is the lowest in 14 days, not 30.
 select public.expect_eq(public.level_claim('2026-10-21 09:00'),
-  'level-low: Nový milník: odhad v těle klesl pod 25 % tvého výchozího stavu 🌱', 'level: overnight milestone');
--- 25 % is already announced and 10 % not reached: a new low instead. 30 days back there were no
--- doses yet (level 0), so it is the lowest in 14 days, not 30.
+  'level-low: Odhad v těle klesl na nejnižší hodnotu za 14 dní. Tělo se čistí 🌱', 'level: lowest in 14 days');
+-- Overnight low ≈ 19 %: the next step.
 select public.expect_eq(public.level_claim('2026-10-22 09:00'),
-  'level-low: Odhad v těle klesl na nejnižší hodnotu za 14 dní. Tělo se čistí 🌱 | '
-  'level-recap: Včera byl nejvyšší odhad v těle o 77 % nižší než předevčírem 📉', 'level: lowest in 14 days');
+  'level-low: Nový milník: odhad v těle klesl pod 25 % tvého výchozího stavu 🌱 | '
+  'level-recap: Včera byl nejvyšší odhad v těle o 77 % nižší než předevčírem 📉', 'level: overnight milestone');
 update user_settings set notify_level = false where user_id = :'e';
 select public.expect_eq(public.level_claim('2026-10-23 09:00'), '-', 'level: off means off');
 select set_config('request.jwt.claim.sub', :'a', false) \g /dev/null

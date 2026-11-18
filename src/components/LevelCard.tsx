@@ -1,11 +1,12 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { useMyDoses } from '../hooks/queries'
+import { useLevelReference, useMyDoses } from '../hooks/queries'
 import { cs } from '../i18n/cs'
 import {
   kratomEffectGrams,
   levelPct,
   pkAt,
   pkAverageGramsPerDay,
+  pkMeanLevel,
   pkRangeVariants,
   pkSeries,
   pkTimesBelow,
@@ -15,6 +16,7 @@ import {
   PK_MEMORY_DAYS,
   PK_CENTRAL,
   PK_PEAK_NM_PER_G,
+  PK_RECENT_AVG_H,
   PK_VARIANT_MEMORY_DAYS,
   type PkDose,
   type PkVariant,
@@ -126,8 +128,11 @@ function projection(doses: readonly PkDose[], from: number, currentNM: number, b
 /**
  * Estimated mitragynine + 7-OH in the body from the user's own doses (src/lib/pk.ts).
  * Only ever shown for yourself: other users' dose times are private.
+ * 100 % = the usual level at the start of the user's records (useLevelReference), not of the current plan.
  */
-export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date; baselineG: number | null }) {
+export function LevelCard({ today, now }: { today: ISODate; now: Date }) {
+  const reference = useLevelReference(today)
+  const baselineG = reference.refG
   // The longest view (7 days) needs the doses of the 14 days before its start too; the range needs 21 days.
   const doses = useMyDoses(addDays(today, -Math.max(PK_MEMORY_DAYS + 7, PK_VARIANT_MEMORY_DAYS)), today)
   const [pastH, setPastH] = useState<PastHours>(readPastHours)
@@ -165,6 +170,8 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
     data[past.length - 1].future = data[past.length - 1].past
     data[past.length - 1].band = nowPoint.band
     data.splice(past.length, 1)
+    // Reference line: the average level over the last 3 days (same scale as the curve).
+    const avg = toY(pkMeanLevel(pastDoses, minute - PK_RECENT_AVG_H * HOUR, minute))
     const markers = pastDoses
       .map((d) => new Date(d.takenAt).getTime())
       .filter((t) => t >= minute - pastH * HOUR)
@@ -173,10 +180,10 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
       when: formatWhen(r.t, today),
       range: r.early === null ? null : cs.level.projectionRange(formatWhenShort(r.early, today), r.late === null ? cs.level.rangeLater : formatWhenShort(r.late, today)),
     }))
-    return { current, data, markers, ahead, heavy: avgG > PK_HEAVY_G_PER_DAY, hasAny: pastDoses.length > 0 }
+    return { current, data, avg, markers, ahead, heavy: avgG > PK_HEAVY_G_PER_DAY, hasAny: pastDoses.length > 0 }
   }, [doses.data, minute, baselineG, pastH, today])
 
-  if (!model) return null
+  if (!model || !reference.ready) return null
   const pct = levelPct(model.current.levelNM, baselineG)
   const showPct = pct !== null
 
@@ -218,7 +225,7 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
             />
             <div aria-hidden="true">
               <Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}>
-                <LevelChart data={model.data} markers={model.markers} now={minute} pastH={pastH} showPct={showPct} height={CHART_HEIGHT} />
+                <LevelChart data={model.data} avg={model.avg} markers={model.markers} now={minute} pastH={pastH} showPct={showPct} height={CHART_HEIGHT} />
               </Suspense>
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted">
@@ -230,6 +237,10 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-4 rounded-sm bg-accent/20" /> {cs.level.legendRange}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-4 border-t-2 border-dotted border-ink/60" />{' '}
+                {cs.level.legendAvg(showPct ? roundPct(model.avg) : null)}
               </span>
             </div>
           </div>
@@ -252,7 +263,9 @@ export function LevelCard({ today, now, baselineG }: { today: ISODate; now: Date
             </div>
           )}
 
-          <p className="text-xs text-muted">{showPct ? cs.level.pctHint : cs.level.noPlanHint}</p>
+          <p className="text-xs text-muted">
+            {reference.source === 'journey' ? cs.level.pctHint : reference.source === 'plan' ? cs.level.pctHintPlan : cs.level.noPctHint}
+          </p>
         </>
       )}
 

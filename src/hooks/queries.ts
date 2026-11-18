@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { backend } from '../api'
 import { computeIntakeStats } from '../lib/intakeStats'
 import type { IntakeSubstance } from '../lib/substances'
-import { pragueToday, type ISODate } from '../lib/time'
+import { journeyBaselineG, JOURNEY_DAYS } from '../lib/pk'
+import { addDays, pragueToday, type ISODate } from '../lib/time'
 
 /** Start of "all history" queries. */
 export const ALL_FROM: ISODate = '2000-01-01'
@@ -30,6 +31,29 @@ export const useActivePlan = () => useQuery({ queryKey: keys.plan, queryFn: () =
 
 export const useMyDoses = (from: ISODate, to: ISODate) =>
   useQuery({ queryKey: keys.doses(from, to), queryFn: () => backend.listMyDoses(from, to) })
+
+/**
+ * Grams per day that 100 % of the kratom body-level estimate stands for: the start of the user's records
+ * (journeyBaselineG), else their first plan's baseline, else null. Own data only.
+ */
+export function useLevelReference(today: ISODate): { refG: number | null; source: 'journey' | 'plan' | null; ready: boolean } {
+  const start = useQuery({ queryKey: ['doses', 'journey-start'], queryFn: () => backend.getMyJourneyStart() })
+  const first = start.data?.firstDoseDate ?? null
+  const to = first ? addDays(first, JOURNEY_DAYS - 1) : null
+  const doses = useQuery({
+    queryKey: keys.doses(first ?? '', to ?? ''),
+    queryFn: () => backend.listMyDoses(first as ISODate, to as ISODate),
+    enabled: first !== null,
+  })
+  return useMemo(() => {
+    const ready = !!start.data && (first === null || !!doses.data)
+    const journey = first && doses.data ? journeyBaselineG(doses.data, first, today) : null
+    if (journey && journey > 0) return { refG: journey, source: 'journey', ready }
+    const plan = start.data?.firstPlanBaselineG ?? null
+    if (plan && plan > 0) return { refG: plan, source: 'plan', ready }
+    return { refG: null, source: null, ready }
+  }, [start.data, first, doses.data, today])
+}
 
 export const useUserDays = (userId: string, from: ISODate, to: ISODate) =>
   useQuery({ queryKey: keys.days(userId, from, to), queryFn: () => backend.getUserDays(userId, from, to) })

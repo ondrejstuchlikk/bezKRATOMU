@@ -356,6 +356,20 @@ export function createSupabaseBackend(sb: SupabaseClient): Backend {
       return rows.map(mapDose)
     },
 
+    async getMyJourneyStart() {
+      const id = await uid()
+      const dose = check(
+        await sb.from('doses').select('local_date').eq('user_id', id).order('taken_at').limit(1).maybeSingle(),
+      ) as Row | null
+      const plan = check(
+        await sb.from('plans').select('baseline_g').eq('user_id', id).order('created_at').limit(1).maybeSingle(),
+      ) as Row | null
+      return {
+        firstDoseDate: dose ? (dose.local_date as ISODate) : null,
+        firstPlanBaselineG: plan ? Number(plan.baseline_g) : null,
+      }
+    },
+
     async addDose(input) {
       check(await sb.from('doses').insert(doseRow(input)))
     },
