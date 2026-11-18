@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react'
 import type { Intake } from '../api'
-import { useMe } from '../auth/SessionProvider'
 import { PlusIcon } from '../components/icons'
 import { CaffeineLevelCard } from '../components/CaffeineLevelCard'
 import { IntakeSheet } from '../components/IntakeSheet'
@@ -23,7 +22,6 @@ const entryBefore = (all: Intake[], day: Intake[]) => (day.length ? all[all.inde
 
 /** Dnes tab for a substance without a plan (caffeine). */
 export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
-  const me = useMe()
   const today = useToday()
   const now = useNow()
   // All entries: the statistics need them anyway, and the lists below are a slice of them.
@@ -56,10 +54,7 @@ export function IntakeTodayPage({ substance }: { substance: 'caffeine' }) {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">{cs.today.greeting(me.nickname)}</h1>
-      </header>
+      <h1 className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</h1>
 
       <Card className="space-y-4">
         <div>

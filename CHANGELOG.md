@@ -3,6 +3,11 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-18
+
+- **Dnes is more compact.** The big "Ahoj, …" greeting at the top of the Dnes page is gone (for kratom, caffeine
+  and nicotine), so the limit card and the rest of the day move up. The date line stays.
+
 ## 2026-11-13
 
 - **"Kofein v těle" can now account for drinking slowly.** If you sip an energy drink over half an hour or an

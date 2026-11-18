@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
 import { backend, type Intake } from '../api'
-import { useMe } from '../auth/SessionProvider'
 import { NicotineSheet } from '../components/NicotineSheet'
 import { Button, Card, cx, ErrorState, errorMessage, Loading } from '../components/ui'
 import { useIntakeStats, useNow, useRefreshIntakes, useSettings, useToday } from '../hooks/queries'
@@ -19,7 +18,6 @@ const pieceNow = (form: NicotineForm) => ({ substance: form, takenAt: new Date()
 
 /** Dnes tab for nicotine: one tap per cigarette or pouch. */
 export function NicotineTodayPage() {
-  const me = useMe()
   const today = useToday()
   const now = useNow()
   const settings = useSettings()
@@ -89,10 +87,7 @@ export function NicotineTodayPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">{cs.today.greeting(me.nickname)}</h1>
-      </header>
+      <h1 className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</h1>
 
       <Card className="space-y-4">
         <div className="text-xs font-medium tracking-wide text-muted uppercase">

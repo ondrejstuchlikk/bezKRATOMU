@@ -83,10 +83,7 @@ export function TodayPage() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-tight">{cs.today.greeting(me.nickname)}</h1>
-      </header>
+      <h1 className="text-sm font-medium text-muted first-letter:uppercase">{formatLongDate(today)}</h1>
 
       {plan.data?.isPaused && (
         <Link to="/plan" className="block rounded-2xl bg-warn/15 px-4 py-3 text-sm font-medium">

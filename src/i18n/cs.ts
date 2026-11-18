@@ -381,7 +381,6 @@ export const cs = {
   },
 
   today: {
-    greeting: (name: string) => `Ahoj, ${name}`,
     limit: 'Dnešní limit',
     taken: 'Zatím',
     remaining: 'Zbývá',
