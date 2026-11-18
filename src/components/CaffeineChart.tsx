@@ -1,7 +1,7 @@
 import { Area, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { cs } from '../i18n/cs'
 import { useThemeColors } from '../lib/theme'
-import { pragueHour, pragueTime } from '../lib/time'
+import { formatWeekday, pragueDate, pragueHour, pragueTime } from '../lib/time'
 
 const HOUR = 3_600_000
 
@@ -18,6 +18,7 @@ export default function CaffeineChart({
   now,
   bedtime,
   refMg,
+  pastH,
   height,
 }: {
   data: CaffeineChartPoint[]
@@ -26,15 +27,20 @@ export default function CaffeineChart({
   /** Next bedtime (epoch ms), drawn when inside the chart. */
   bedtime: number | null
   refMg: number
+  /** Hours of history shown (12, 24, 48 or 3/5/7 days). */
+  pastH: number
   height: number
 }) {
   const c = useThemeColors()
   const first = data[0]?.t ?? now
   const last = data[data.length - 1]?.t ?? now
-  // Whole hours 0/6/12/18 (Prague) plus "now"; hour ticks too close to "now" are dropped.
+  // "Now" plus whole Prague hours every 6 h (12 or 24 h of history; the projection adds 8+ h), 12 h (48 h) or
+  // midnights labelled with the weekday (3+ days); ticks too close to "now" are dropped.
+  const multiDay = pastH > 48
+  const step = pastH <= 24 ? 6 : pastH <= 48 ? 12 : 24
   const ticks: number[] = [now]
   for (let t = Math.ceil(first / HOUR) * HOUR; t <= last; t += HOUR) {
-    if (pragueHour(new Date(t)) % 6 === 0 && Math.abs(t - now) > 2 * HOUR) ticks.push(t)
+    if (pragueHour(new Date(t)) % step === 0 && Math.abs(t - now) > (step / 3) * HOUR) ticks.push(t)
   }
   ticks.sort((a, b) => a - b)
   return (
@@ -46,7 +52,7 @@ export default function CaffeineChart({
           scale="time"
           domain={['dataMin', 'dataMax']}
           ticks={ticks}
-          tickFormatter={(t) => (t === now ? cs.caffeineLevel.now : pragueTime(new Date(Number(t))))}
+          tickFormatter={(t) => (t === now ? cs.caffeineLevel.now : multiDay ? formatWeekday(pragueDate(new Date(Number(t)))) : pragueTime(new Date(Number(t))))}
           stroke={c.muted}
           fontSize={11}
           tickLine={false}
@@ -67,7 +73,7 @@ export default function CaffeineChart({
         <Tooltip
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}
           labelStyle={{ color: c.muted }}
-          labelFormatter={(t) => pragueTime(new Date(Number(t)))}
+          labelFormatter={(t) => (multiDay ? `${formatWeekday(pragueDate(new Date(Number(t))))} ` : '') + pragueTime(new Date(Number(t)))}
           formatter={(v) => [`${Math.round(Number(v))} mg`, cs.caffeineLevel.tooltip]}
           separator=": "
           filterNull

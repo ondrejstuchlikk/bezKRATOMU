@@ -5,6 +5,9 @@ has to be run once in *Supabase → SQL Editor* (see README, step 2) for the cha
 
 ## 2026-11-18
 
+- **"Kofein v těle" chart: pick how far back it shows**, the same way as the kratom "V těle teď" chart: 12 h, 24 h,
+  48 h, or under *Více* 3, 5 or 7 days. The longer views show your daily ups and downs over the week. The choice is
+  remembered on your phone, separately from the kratom chart. No migration.
 - **"V těle teď": 100 % now means the start of your journey, not of your current plan.** Until now 100 % was the
   usual level at the start of your active plan, so it jumped whenever you started a new plan. Now it is your usual
   level in the **first week of your records** (average grams per day over the days you logged in your first 7 days),

@@ -206,7 +206,8 @@ Marek, Bára — all PIN `123456`.
   `ts_constants.json`, `numbers.tex`/`tables.tex` generated). Option A: one compartment, ka 4.42/h, t1/2 5.20 h
   (median of 25 control groups), V 0.669 L/kg, sleep reference 0.52 mg/kg. In the app: `src/lib/caffeinePk.ts`
   (constants copied from `ts_constants.json`; `caffeinePk.test.ts` imports the JSON and pins its check values),
-  `CaffeineLevelCard.tsx` + lazy `CaffeineChart.tsx`, weight/bedtime settings (`0019`). Own data only, like kratom. Rebuild like the kratom
+  `CaffeineLevelCard.tsx` + lazy `CaffeineChart.tsx` (same `LevelRangePicker` as kratom; range options and the
+  per-device `readPastHours`/`savePastHours(key)` live in `src/lib/levelRange.ts`, own localStorage key per card), weight/bedtime settings (`0019`). Own data only, like kratom. Rebuild like the kratom
   report: `python3 -I docs/caffeine-pk-model/model.py`, then `pdflatex` ×3 in that folder, delete aux files.
   PubMed via E-utilities works with `curl` (Python urllib HTTPS fails here); PK-DB (pk-db.com) timed out.
 - Caffeine body model decisions (2026-11-08): big number = mg of

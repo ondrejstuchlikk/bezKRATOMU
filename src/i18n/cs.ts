@@ -90,7 +90,7 @@ export const cs = {
     absorbing: (mg: string) => `+ ${mg} mg se ještě vstřebává`,
     absorbingDrinking: (mg: string) => `+ ${mg} mg ještě dopíjíš nebo se vstřebává`,
     none: 'Za poslední 3 dny nemáš zapsaný žádný kofein – podle modelu už v těle žádný není.',
-    legendPast: 'posledních 24 h',
+    legendPast: (h: number) => (h < 72 ? `posledních ${h} h` : h / 24 < 5 ? `poslední ${h / 24} dny` : `posledních ${h / 24} dní`),
     legendFuture: 'když si už nic nedáš',
     legendRef: 'referenční hladina pro spánek',
     now: 'teď',

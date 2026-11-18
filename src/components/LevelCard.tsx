@@ -23,7 +23,7 @@ import {
 } from '../lib/pk'
 import { addDays, formatWeekdayDate, pragueDate, pragueTime, type ISODate } from '../lib/time'
 import { formatNumber } from '../lib/units'
-import { DAY_OPTIONS, HOUR_OPTIONS, type PastHours } from '../lib/levelRange'
+import { readPastHours, savePastHours, type PastHours } from '../lib/levelRange'
 import { LevelRangePicker } from './LevelRangePicker'
 import { Card } from './ui'
 
@@ -34,30 +34,10 @@ const CHART_HEIGHT = 150
 const HOUR = 3_600_000
 const FUTURE_H = 12
 
-const PAST_OPTIONS: PastHours[] = [...HOUR_OPTIONS, ...DAY_OPTIONS]
-const DEFAULT_PAST_H: PastHours = 24
 const RANGE_KEY = 'levelRangeH'
 /** Projection thresholds, % of the baseline level (the same steps as the milestone notifications). */
 const PROJECTION_PCT = [75, 50, 25, 10]
 const PROJECTION_ROWS = 2
-
-/** The chosen chart range is a per-device convenience, so localStorage is fine (and optional). */
-function readPastHours(): PastHours {
-  try {
-    const v = Number(localStorage.getItem(RANGE_KEY))
-    return PAST_OPTIONS.includes(v as PastHours) ? (v as PastHours) : DEFAULT_PAST_H
-  } catch {
-    return DEFAULT_PAST_H
-  }
-}
-
-function savePastHours(h: PastHours) {
-  try {
-    localStorage.setItem(RANGE_KEY, String(h))
-  } catch {
-    // ignore (private mode etc.)
-  }
-}
 
 /** "98", "5,2", "0,4" – whole mg from 10 up, one decimal below. */
 function formatMg(mg: number): string {
@@ -135,7 +115,7 @@ export function LevelCard({ today, now }: { today: ISODate; now: Date }) {
   const baselineG = reference.refG
   // The longest view (7 days) needs the doses of the 14 days before its start too; the range needs 21 days.
   const doses = useMyDoses(addDays(today, -Math.max(PK_MEMORY_DAYS + 7, PK_VARIANT_MEMORY_DAYS)), today)
-  const [pastH, setPastH] = useState<PastHours>(readPastHours)
+  const [pastH, setPastH] = useState<PastHours>(() => readPastHours(RANGE_KEY))
   // Recompute once a minute, not on every render.
   const minute = Math.floor(now.getTime() / 60_000) * 60_000
 
@@ -220,7 +200,7 @@ export function LevelCard({ today, now }: { today: ISODate; now: Date }) {
               value={pastH}
               onChange={(h) => {
                 setPastH(h)
-                savePastHours(h)
+                savePastHours(RANGE_KEY, h)
               }}
             />
             <div aria-hidden="true">

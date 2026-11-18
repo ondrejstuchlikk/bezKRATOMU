@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import type { Intake } from '../api'
 import { cs } from '../i18n/cs'
 import {
@@ -13,7 +13,9 @@ import {
   nextClockTime,
 } from '../lib/caffeinePk'
 import { addDays, formatWeekdayDate, pragueDate, pragueTime, type ISODate } from '../lib/time'
+import { readPastHours, savePastHours, type PastHours } from '../lib/levelRange'
 import { formatNumber } from '../lib/units'
+import { LevelRangePicker } from './LevelRangePicker'
 import { Card } from './ui'
 
 // Recharts is big; keep it out of the first page load.
@@ -21,7 +23,8 @@ const CaffeineChart = lazy(() => import('./CaffeineChart'))
 
 const CHART_HEIGHT = 150
 const HOUR = 3_600_000
-const PAST_H = 24
+/** Own key, so kratom and caffeine keep their chart ranges separately. */
+const RANGE_KEY = 'caffeineLevelRangeH'
 /** The projection runs at least this long, and past bedtime by an hour. */
 const MIN_FUTURE_H = 8
 
@@ -62,6 +65,7 @@ export function CaffeineLevelCard({
 }) {
   // Recompute once a minute.
   const minute = Math.floor(now.getTime() / 60_000) * 60_000
+  const [pastH, setPastH] = useState<PastHours>(() => readPastHours(RANGE_KEY))
   const refMg = cafSleepRefMg(weightKg)
 
   const clearance = useMemo(
@@ -77,19 +81,19 @@ export function CaffeineLevelCard({
     const current = cafAt(past, minute, clearance)
     const bed = nextClockTime(minute, bedtime)
     const futureEnd = Math.max(minute + MIN_FUTURE_H * HOUR, bed + HOUR)
-    const pastSeries = cafSeries(past, minute - PAST_H * HOUR, minute, 10, clearance)
+    const pastSeries = cafSeries(past, minute - pastH * HOUR, minute, pastH > 48 ? 30 : 10, clearance)
     const futureSeries = cafSeries(past, minute, futureEnd, 10, clearance)
     const data = [
       ...pastSeries.map((p) => ({ t: p.t, past: p.bodyMg, future: null as number | null })),
       ...futureSeries.slice(1).map((p) => ({ t: p.t, past: null as number | null, future: p.bodyMg })),
     ]
     data[pastSeries.length - 1].future = data[pastSeries.length - 1].past
-    const markers = past.map((i) => new Date(i.takenAt).getTime()).filter((t) => t >= minute - PAST_H * HOUR)
+    const markers = past.map((i) => new Date(i.takenAt).getTime()).filter((t) => t >= minute - pastH * HOUR)
     const atBed = cafAt(past, bed, clearance).bodyMg
     const below = cafTimeBelow(past, minute, refMg, 5, clearance)
     const hasAny = past.some((i) => minute - new Date(i.takenAt).getTime() < 72 * HOUR)
     return { current, data, markers, bed, atBed, below, hasAny }
-  }, [intakes, minute, bedtime, refMg, clearance, drinkMinutes])
+  }, [intakes, minute, bedtime, refMg, clearance, drinkMinutes, pastH])
 
   const roundedBelow = model.below === null ? null : Math.round(model.below / 600_000) * 600_000
 
@@ -119,14 +123,21 @@ export function CaffeineLevelCard({
           </div>
 
           <div>
+            <LevelRangePicker
+              value={pastH}
+              onChange={(h) => {
+                setPastH(h)
+                savePastHours(RANGE_KEY, h)
+              }}
+            />
             <div aria-hidden="true">
               <Suspense fallback={<div style={{ height: CHART_HEIGHT }} />}>
-                <CaffeineChart data={model.data} markers={model.markers} now={minute} bedtime={model.bed} refMg={refMg} height={CHART_HEIGHT} />
+                <CaffeineChart data={model.data} markers={model.markers} now={minute} bedtime={model.bed} refMg={refMg} pastH={pastH} height={CHART_HEIGHT} />
               </Suspense>
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted">
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-0.5 w-4 rounded bg-accent" /> {cs.caffeineLevel.legendPast}
+                <span className="inline-block h-0.5 w-4 rounded bg-accent" /> {cs.caffeineLevel.legendPast(pastH)}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-4 border-t-2 border-dashed border-accent" /> {cs.caffeineLevel.legendFuture}

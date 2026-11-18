@@ -115,8 +115,8 @@ sends. Lock-screen texts never contain grams.
   When sharing comes, they must move into security-definer RPCs like the kratom ones.
 - **Caffeine in the body** (*Dnes* with Kofein selected → *Kofein v těle*): `src/lib/caffeinePk.ts` estimates the
   caffeine absorbed and not yet eliminated from the user's own entries of the last 72 h (one-compartment model,
-  half-life 5.2 h, absorption peak ~50 min), shown in mg and cups of coffee (100 mg each), with a 24 h chart,
-  a projection past bedtime, the amount at bedtime and when it falls below a soft sleep reference
+  half-life 5.2 h, absorption peak ~50 min), shown in mg and cups of coffee (100 mg each), with a chart
+  (12/24/48 h or 3/5/7 days back, same picker as the kratom card), a projection past bedtime, the amount at bedtime and when it falls below a soft sleep reference
   (0.52 mg per kg body weight). Body weight (default 70 kg) and bedtime (default 23:00) are in Nastavení
   (`0019_caffeine_level.sql`). Literature, model choice, validation and limits:
   `docs/caffeine-pk-model/caffeine-pk-model.pdf`; `docs/caffeine-pk-model/model.py` regenerates the constants.
