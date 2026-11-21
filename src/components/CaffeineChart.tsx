@@ -73,6 +73,7 @@ export default function CaffeineChart({
         <Tooltip
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}
           labelStyle={{ color: c.muted }}
+          itemStyle={{ color: c.ink }}
           labelFormatter={(t) => (multiDay ? `${formatWeekday(pragueDate(new Date(Number(t))))} ` : '') + pragueTime(new Date(Number(t)))}
           formatter={(v) => [`${Math.round(Number(v))} mg`, cs.caffeineLevel.tooltip]}
           separator=": "

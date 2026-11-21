@@ -77,6 +77,7 @@ export default function LevelChart({
         <Tooltip
           contentStyle={{ background: c.surface, border: `1px solid ${c.line}`, borderRadius: 14, color: c.ink, fontSize: 13 }}
           labelStyle={{ color: c.muted }}
+          itemStyle={{ color: c.ink }}
           labelFormatter={(t) => (multiDay ? `${weekday(Number(t))} ` : '') + pragueTime(new Date(Number(t)))}
           formatter={(v, _name, item) => {
             if (item.dataKey === 'band') {

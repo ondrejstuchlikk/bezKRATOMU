@@ -36,6 +36,10 @@ function useChartStyle() {
         fontSize: 13,
       },
       labelStyle: { color: c.muted },
+      // Recharts colours each row like its series by default; bars coloured per Cell have no series colour,
+      // so their row fell back to black, unreadable on the dark tooltip. Use the theme's text colour.
+      itemStyle: { color: c.ink },
+      separator: ': ',
       cursor: { fill: c.line, opacity: 0.4 },
     },
   }

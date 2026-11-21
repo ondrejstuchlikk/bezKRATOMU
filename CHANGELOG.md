@@ -3,6 +3,12 @@
 What changed in bezKRATOMU, newest first. **Migration** means a file from `supabase/migrations/` that
 has to be run once in *Supabase → SQL Editor* (see README, step 2) for the change to work on the live site.
 
+## 2026-11-21
+
+- **Chart tooltips are readable in dark mode.** When you tap a chart (e.g. *Plán a skutečnost* on Graf), the
+  little box with the numbers showed some rows, like "Skutečnost", in black text on the dark background. All
+  chart tooltips now use the normal text colour, light in dark mode and dark in light mode. No migration.
+
 ## 2026-11-18
 
 - **"Kofein v těle" chart: pick how far back it shows**, the same way as the kratom "V těle teď" chart: 12 h, 24 h,
